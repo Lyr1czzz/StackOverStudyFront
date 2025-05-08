@@ -9,6 +9,7 @@ import AskQuestionPage from './pages/AskQuestionPage';
 import QuestionDetailPage from './pages/QuestionDetailPage';
 import { Box, CssBaseline } from '@mui/material';
 import Footer from './components/Footer';
+import TagsPage from './pages/TagsPage';
 
 function App() {
   return (
@@ -64,6 +65,7 @@ function App() {
               <Route path="/about" element={<About />} />
               <Route path="/ask" element={<AskQuestionPage />} />
               <Route path="/questions/:questionId" element={<QuestionDetailPage />} />
+              <Route path="/tags" element={<TagsPage />} />
             </Routes>
           </Box>
         </Box>

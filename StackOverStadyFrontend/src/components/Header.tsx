@@ -137,7 +137,7 @@ const Header = () => {
               underline="none"
               sx={{ display: 'flex', alignItems: 'center' }}
             >
-              <img src="/logo.png" alt="Logo" style={{ height: 32, marginRight: '8px' }} />
+              <img src="/newlogo.png" alt="Logo" style={{ height: 32, marginRight: '8px' }} />
               <Typography variant="h6" fontWeight="bold" component="div" sx={{ display: { xs: 'none', sm: 'block' } }}>
                 StackOverStudy
               </Typography>

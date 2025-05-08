@@ -9,6 +9,7 @@ import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
 import PersonIcon from '@mui/icons-material/Person';
+import TagIcon from '@mui/icons-material/Tag';
 import { Link as RouterLink } from 'react-router-dom';
 
 const Sidebar = () => {
@@ -19,6 +20,7 @@ const Sidebar = () => {
     { path: '/about', icon: <InfoIcon />, text: 'About' },
     { path: '/ask', icon: <QuestionAnswerIcon />, text: 'Ask Question' },
     { path: '/profile', icon: <PersonIcon />, text: 'Profile' },
+    { path: '/tags', icon: <TagIcon />, text: 'Tags' },
   ];
 
   return (

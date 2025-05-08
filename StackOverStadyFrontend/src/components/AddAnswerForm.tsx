@@ -1,92 +1,140 @@
+// src/components/AddAnswerForm.tsx
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, TextField, Button, CircularProgress, Alert, Typography, Link } from '@mui/material';
-import { useAuth } from '../AuthContext'; // Для проверки авторизации
+import {
+  Box,
+  Button,
+  CircularProgress,
+  Alert,
+  Typography,
+  Link as MuiLink,
+  FormControl,
+  FormHelperText,
+  FormLabel,
+} from '@mui/material';
+import { Link as RouterLink, useLocation } from 'react-router-dom';
+import { useAuth } from '../AuthContext';
+import RichTextEditor from './RichTextEditor';
+import { AnswerDto } from '../pages/QuestionDetailPage'; // Убедитесь, что этот путь и интерфейс корректны
+
+const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
 
 interface AddAnswerFormProps {
     questionId: number;
-    onAnswerAdded: (newAnswer: any) => void; // Callback для обновления списка ответов на странице
+    onAnswerAdded: (newAnswer: AnswerDto) => void;
 }
 
 const AddAnswerForm: React.FC<AddAnswerFormProps> = ({ questionId, onAnswerAdded }) => {
     const [content, setContent] = useState('');
+    const [contentError, setContentError] = useState<string | null>(null);
+
     const [isSubmitting, setIsSubmitting] = useState(false);
-    const [error, setError] = useState<string | null>(null);
-    const { user } = useAuth(); // Проверяем, вошел ли пользователь
+    const [submitError, setSubmitError] = useState<string | null>(null);
+    const { user } = useAuth();
+    const location = useLocation();
+
+    const handleContentChange = (value: string) => {
+      setContent(value);
+      const textOnly = value.replace(/<[^>]*>?/gm, '');
+      if (textOnly.trim().length >= 10 && contentError) {
+        setContentError(null);
+      }
+    };
+
+    const validateForm = (): boolean => {
+        setContentError(null);
+        setSubmitError(null);
+        const textOnlyContent = content.replace(/<[^>]*>?/gm, '');
+        if (!textOnlyContent.trim() || textOnlyContent.trim().length < 10) {
+             setContentError("Ответ должен содержать не менее 10 видимых символов.");
+             return false;
+        }
+        return true;
+    };
 
     const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
         e.preventDefault();
         if (!user) {
-            setError("Нужно войти, чтобы оставить ответ.");
+            setSubmitError("Нужно войти, чтобы оставить ответ.");
             return;
         }
-        if (!content.trim() || content.trim().length < 10) {
-             setError("Ответ должен содержать не менее 10 символов.");
-             return;
-         }
+        if (!validateForm()) {
+            setSubmitError("Пожалуйста, исправьте ошибки в форме.");
+            return;
+        }
 
-        setError(null);
         setIsSubmitting(true);
-
         const answerData = { content };
 
         try {
-            const response = await axios.post(
-                `https://localhost:7295/api/Questions/${questionId}/answers`,
+            const response = await axios.post<AnswerDto>(
+                `${API_URL}/Questions/${questionId}/answers`,
                 answerData,
                 { withCredentials: true }
             );
-            console.log("Ответ успешно добавлен:", response.data);
-            onAnswerAdded(response.data); // Передаем новый ответ наверх
-            setContent(''); // Очищаем форму
+            onAnswerAdded(response.data);
+            setContent('');
         } catch (err) {
             console.error("Ошибка добавления ответа:", err);
             let errorMessage = "Не удалось добавить ответ.";
-            if (axios.isAxiosError(err)) {
-                errorMessage = `Ошибка ${err.response?.status || ''}: ${err.response?.data?.message || err.message}`;
+             if (axios.isAxiosError(err)) {
+                if (err.response?.status === 401) {
+                    errorMessage = "Сессия истекла или вы не авторизованы. Пожалуйста, войдите снова."
+                } else if (err.response?.data?.message) {
+                    errorMessage = err.response.data.message;
+                } else if (err.response?.data?.errors) {
+                     const messages = Object.values(err.response.data.errors).flat().join(' ');
+                     errorMessage = `Ошибка валидации: ${messages || 'Проверьте введенные данные.'}`;
+                } else {
+                    errorMessage = `Ошибка ${err.response?.status || ''}: ${err.message}`;
+                }
             }
-            setError(errorMessage);
+            setSubmitError(errorMessage);
         } finally {
             setIsSubmitting(false);
         }
     };
 
-    // Не показываем форму, если пользователь не вошел
     if (!user) {
         return (
-             <Typography variant="body1" sx={{ mt: 3, p: 2, backgroundColor: 'action.hover', borderRadius: 1 }}>
-                Чтобы оставить ответ, пожалуйста, <Link component="button" onClick={() => useAuth().login()}>войдите</Link>.
-            </Typography>
+             <Alert severity="info" sx={{mt: 3}}>
+                Чтобы оставить ответ, пожалуйста, {' '}
+                <MuiLink component={RouterLink} to="/login" state={{ from: location.pathname }} fontWeight="bold">
+                    войдите
+                </MuiLink>
+                .
+            </Alert>
         );
     }
 
-
     return (
-        <Box sx={{ mt: 4 }}>
-            <Typography variant="h6" gutterBottom>Ваш ответ</Typography>
-            <form onSubmit={handleSubmit}>
-                <TextField
-                    fullWidth
-                    multiline
-                    rows={6}
-                    label="Напишите ваш ответ здесь..."
+        <Box component="form" onSubmit={handleSubmit} noValidate sx={{ mt: 1 }}>
+             <FormControl fullWidth margin="normal" error={!!contentError} disabled={isSubmitting}>
+                {/* Заголовок "Ваш ответ" обычно предоставляется родительским компонентом QuestionDetailPage */}
+                {/* Если он нужен здесь, можно раскомментировать FormLabel */}
+                {/* <FormLabel component="legend" sx={{ mb: 1, fontSize: '1rem', color: !!contentError ? 'error.main' : undefined }}>Ваш ответ</FormLabel> */}
+                <RichTextEditor
                     value={content}
-                    onChange={(e) => setContent(e.target.value)}
-                    required
-                    margin="normal"
-                    disabled={isSubmitting}
-                    helperText="Подробно опишите решение или дайте полезный совет (мин. 10 символов)."
+                    onChange={handleContentChange}
+                    placeholder="Напишите ваш развернутый ответ здесь..."
+                    // className="answer-editor-quill" // Для кастомной высоты
                 />
-                {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
-                <Button
-                    type="submit"
-                    variant="contained"
-                    disabled={isSubmitting || !content.trim() || content.trim().length < 10}
-                    startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
-                >
-                    {isSubmitting ? 'Отправка...' : 'Опубликовать ответ'}
-                </Button>
-            </form>
+                <FormHelperText error={!!contentError}>
+                    {contentError || "Минимум 10 видимых символов."}
+                </FormHelperText>
+            </FormControl>
+
+            {submitError && <Alert severity="error" sx={{ mb: 2 }}>{submitError}</Alert>}
+            <Button
+                type="submit"
+                variant="contained"
+                color="primary"
+                disabled={isSubmitting || !!contentError || content.replace(/<[^>]*>?/gm, '').trim().length < 10}
+                startIcon={isSubmitting ? <CircularProgress size={20} color="inherit" /> : null}
+                sx={{ mt: 1 }}
+            >
+                {isSubmitting ? 'Отправка...' : 'Опубликовать ответ'}
+            </Button>
         </Box>
     );
 };
