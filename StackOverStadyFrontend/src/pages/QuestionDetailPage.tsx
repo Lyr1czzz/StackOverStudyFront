@@ -1,5 +1,4 @@
 // src/pages/QuestionDetailPage.tsx
-
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
@@ -24,27 +23,39 @@ import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js/lib/core';
+// Убедитесь, что у вас установлены и импортированы нужные языки для highlight.js, например:
+// import javascript from 'highlight.js/lib/languages/javascript';
+// import python from 'highlight.js/lib/languages/python';
+// import xml from 'highlight.js/lib/languages/xml'; // HTML тоже
+// import css from 'highlight.js/lib/languages/css';
+// import csharp from 'highlight.js/lib/languages/csharp';
+// hljs.registerLanguage('javascript', javascript);
+// hljs.registerLanguage('python', python);
+// hljs.registerLanguage('xml', xml);
+// hljs.registerLanguage('css', css);
+// hljs.registerLanguage('csharp', csharp);
+
 
 import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
 import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
-// import ContentCopyIcon from '@mui/icons-material/ContentCopy'; // Используем SVG напрямую для кнопки
+// CheckCircleIcon не нужен здесь, он будет в AnswerCard для кнопки
 
-import AddAnswerForm from '../components/AddAnswerForm';
-import CommentList from '../components/CommentList';
-import { useAuth } from '../AuthContext';
-import AnswerCard from '../components/AnswerCard';
+import AddAnswerForm from '../components/AddAnswerForm'; // Предполагается, что этот компонент у вас есть
+import CommentList from '../components/CommentList';     // И этот тоже
+import { useAuth } from '../AuthContext';             // И AuthContext
+import AnswerCard from '../components/AnswerCard';    // Наш AnswerCard
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api'; // Убедитесь, что URL корректный
 
-export interface AnswerDto { // <--- Убедитесь, что этот интерфейс экспортируется
+export interface AnswerDto {
     id: number;
     content: string;
     createdAt: string;
     author: UserInfoDto;
     rating: number;
-    isAccepted: boolean;
-  }
+    isAccepted: boolean; // Важное поле
+}
 
 export interface UserInfoDto {
   id: number;
@@ -77,7 +88,7 @@ const QuestionDetailPage = () => {
   const [question, setQuestion] = useState<QuestionDetailData | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const [votingState, setVotingState] = useState<'idle' | 'voting'>('idle');
+  const [votingState, setVotingState] = useState<'idle' | 'voting'>('idle'); // Для голосования за вопрос
 
   const contentRef = useRef<HTMLDivElement>(null);
   const [snackbarOpen, setSnackbarOpen] = useState(false);
@@ -85,8 +96,19 @@ const QuestionDetailPage = () => {
 
   const sanitizedHtml = (html: string) => {
     return DOMPurify.sanitize(html, {
-      USE_PROFILES: { html: true }
+      USE_PROFILES: { html: true },
+      ADD_TAGS: ['iframe'], // Разрешаем iframe (например, для YouTube)
+      ADD_ATTR: ['allow', 'allowfullscreen', 'frameborder', 'scrolling', 'src', 'title', 'width', 'height'], // Атрибуты для iframe и других
     });
+  };
+
+  const sortAnswers = (answers: AnswerDto[]): AnswerDto[] => {
+    return [...answers].sort((a, b) => {
+        if (a.isAccepted && !b.isAccepted) return -1;
+        if (!a.isAccepted && b.isAccepted) return 1;
+        if (b.rating !== a.rating) return b.rating - a.rating;
+        return new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime(); // Сначала новые, если рейтинг одинаковый
+      });
   };
 
   const fetchQuestion = useCallback(async () => {
@@ -97,10 +119,11 @@ const QuestionDetailPage = () => {
     }
     setLoading(true);
     setError(null);
-    setQuestion(null); // Сбрасываем предыдущие данные вопроса при новой загрузке
+    setQuestion(null);
     try {
       const response = await axios.get<QuestionDetailData>(`${API_URL}/Questions/${questionId}`);
-      response.data.answers.sort((a, b) => (a.isAccepted && !b.isAccepted) ? -1 : ((!a.isAccepted && b.isAccepted) ? 1 : b.rating - a.rating));
+      // Сортировка ответов: принятый первым, затем по рейтингу, затем по дате
+      response.data.answers = sortAnswers(response.data.answers);
       setQuestion(response.data);
     } catch (err) {
       console.error("Ошибка загрузки вопроса:", err);
@@ -108,7 +131,8 @@ const QuestionDetailPage = () => {
         if (err.response?.status === 404) {
           setError("Вопрос не найден (404).");
         } else {
-          setError(`Не удалось загрузить вопрос. Ошибка ${err.response?.status || 'сети'}.`);
+          const errData = err.response?.data as { message?: string };
+          setError(`Не удалось загрузить вопрос. ${errData?.message || `Ошибка ${err.response?.status || 'сети'}`}.`);
         }
       } else {
         setError("Произошла неизвестная ошибка при загрузке вопроса.");
@@ -124,28 +148,27 @@ const QuestionDetailPage = () => {
 
   useEffect(() => {
     if (loading || !question || !contentRef.current) {
-      return; // Выходим, если загрузка, нет данных или ref еще не привязан
+      return;
     }
+    const currentContentRef = contentRef.current;
 
     // 1. Подсветка синтаксиса
-    const codeBlocks = contentRef.current.querySelectorAll('pre code, pre.ql-syntax code');
+    const codeBlocks = currentContentRef.querySelectorAll('pre code, pre.ql-syntax code');
     codeBlocks.forEach((block) => {
-      if (!block.classList.contains('hljs') && !(block.parentElement?.classList.contains('hljs'))) {
-          hljs.highlightElement(block as HTMLElement);
-          if (block.parentElement && block.parentElement.tagName === 'PRE') {
-            // Добавляем класс к родителю, чтобы знать, что он обработан
-            block.parentElement.classList.add('hljs-processed-parent');
+      const B = block as HTMLElement;
+      if (!B.dataset.highlighted) { // Используем data-атрибут для предотвращения повторной подсветки
+          hljs.highlightElement(B);
+          B.dataset.highlighted = 'true';
+          if (B.parentElement && B.parentElement.tagName === 'PRE') {
+            B.parentElement.classList.add('hljs-processed-parent');
           }
       }
     });
 
     // 2. Добавление кнопок "Копировать"
-    const preElements = contentRef.current.querySelectorAll('pre');
+    const preElements = currentContentRef.querySelectorAll('pre:not(.code-block-wrapper-dynamic pre)'); // Избегаем дублирования
     preElements.forEach(pre => {
-      if (pre.parentElement?.classList.contains('code-block-wrapper-dynamic')) {
-        return;
-      }
-      if (pre.querySelector('button.copy-code-button')) { // Дополнительная проверка, если кнопка уже там
+      if (pre.querySelector('button.copy-code-button')) { // Если кнопка уже есть
         return;
       }
 
@@ -154,7 +177,7 @@ const QuestionDetailPage = () => {
       wrapper.classList.add('code-block-wrapper-dynamic');
 
       const copyButton = document.createElement('button');
-      copyButton.classList.add('copy-code-button'); // Класс для идентификации
+      copyButton.classList.add('copy-code-button');
       const svgIcon = `<svg fill="currentColor" width="16px" height="16px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
       copyButton.innerHTML = svgIcon;
       copyButton.setAttribute('aria-label', 'Копировать код');
@@ -186,49 +209,99 @@ const QuestionDetailPage = () => {
       wrapper.appendChild(pre);
       wrapper.appendChild(copyButton);
     });
-  }, [loading, question]); // Зависимости
+  }, [loading, question, question?.content]); // Перезапускаем при изменении контента вопроса
 
 
-  const handleAnswerAdded = (newAnswer: AnswerDto) => {
+  const handleAnswerAdded = useCallback((newAnswer: AnswerDto) => {
     setQuestion(prevQuestion => {
-        if (!prevQuestion) return null; // Эта проверка здесь на всякий случай
-        const updatedAnswers = [...prevQuestion.answers, newAnswer]
-            .sort((a, b) => (a.isAccepted && !b.isAccepted) ? -1 : ((!a.isAccepted && b.isAccepted) ? 1 : b.rating - a.rating));
+        if (!prevQuestion) return null;
+        const updatedAnswers = sortAnswers([...prevQuestion.answers, newAnswer]);
         return { ...prevQuestion, answers: updatedAnswers };
     });
-  };
+    setSnackbarMessage("Ответ успешно добавлен!");
+    setSnackbarOpen(true);
+  }, []);
 
   const handleQuestionVote = async (voteType: 'Up' | 'Down') => {
-    if (authLoading || !user || !question || votingState === 'voting') return;
+    if (authLoading || !user || !question || votingState === 'voting') {
+        if(!user && !authLoading) {
+            setSnackbarMessage("Нужна авторизация для голосования за вопрос");
+            setSnackbarOpen(true);
+            // navigate('/login', { state: { from: location } }); // опционально
+        }
+        return;
+    }
     setVotingState('voting');
     try {
-      const response = await axios.post<{ newRating: number }>(`${API_URL}/questions/${question.id}/vote`, { voteType }, { withCredentials: true });
+      // Используем ваш VotesController
+      const response = await axios.post<{ action: string, newRating: number }>(
+        `${API_URL}/questions/${question.id}/vote`,
+        { voteType },
+        { withCredentials: true }
+      );
       setQuestion(prev => (prev ? { ...prev, rating: response.data.newRating } : null));
-    } catch (error) { /* ... (обработка ошибок голосования) ... */ }
+      setSnackbarMessage(response.data.action === "removed vote" ? "Голос за вопрос отменен." : "Голос за вопрос учтён!");
+      setSnackbarOpen(true);
+    } catch (error) {
+        console.error("Ошибка голосования за вопрос:", error);
+        if (axios.isAxiosError(error)) {
+             setSnackbarMessage(error.response?.data?.message || "Ошибка голосования за вопрос");
+        } else {
+            setSnackbarMessage("Неизвестная ошибка голосования за вопрос");
+        }
+        setSnackbarOpen(true);
+    }
     finally { setVotingState('idle'); }
   };
 
-  const handleAnswerVoteUpdate = (answerId: number, newRating: number) => {
+  // Этот колбэк будет вызван из AnswerCard при успешном голосовании за ответ
+  const handleAnswerVoteUpdate = useCallback((answerId: number, newRating: number) => {
     setQuestion(prevQuestion => {
         if (!prevQuestion) return null;
-        const updatedAnswers = prevQuestion.answers.map(ans => ans.id === answerId ? { ...ans, rating: newRating } : ans)
-            .sort((a, b) => (a.isAccepted && !b.isAccepted) ? -1 : ((!a.isAccepted && b.isAccepted) ? 1 : b.rating - a.rating));
-        return { ...prevQuestion, answers: updatedAnswers };
+        const updatedAnswers = prevQuestion.answers.map(ans =>
+            ans.id === answerId ? { ...ans, rating: newRating } : ans
+        );
+        return { ...prevQuestion, answers: sortAnswers(updatedAnswers) };
     });
-  };
+    // Snackbar об успехе голосования за ответ будет в AnswerCard
+  }, []);
 
-  const formattedDate = (dateString: string) => {
-    try { return formatDistanceToNow(parseISO(dateString), { addSuffix: true, locale: ru }); }
-    catch (e) { return "недавно"; }
+  // Этот колбэк будет вызван из AnswerCard при успешном принятии ответа
+  const handleAcceptAnswerConfirmed = useCallback((acceptedAnswerId: number) => {
+    setQuestion(prevQuestion => {
+      if (!prevQuestion) return null;
+
+      const newAnswers = prevQuestion.answers.map(ans => ({
+        ...ans,
+        isAccepted: ans.id === acceptedAnswerId, // Принимаем новый
+      }));
+      
+      setSnackbarMessage("Ответ успешно принят!");
+      setSnackbarOpen(true);
+      return { ...prevQuestion, answers: sortAnswers(newAnswers) };
+    });
+  }, []);
+
+
+  const formattedDate = (dateString: string): string => {
+    try {
+      return formatDistanceToNow(parseISO(dateString), { addSuffix: true, locale: ru });
+    } catch (e) {
+      console.warn("Invalid date for formatting:", dateString);
+      return "недавно";
+    }
   };
 
   const getAnswerCountText = (count: number): string => {
-    const cases = [2, 0, 1, 1, 1, 2];
-    const titles = ['ответ', 'ответа', 'ответов'];
-    return titles[(count % 100 > 4 && count % 100 < 20) ? 2 : cases[Math.min(count % 10, 5)]];
+    if (count === 0) return 'ответов';
+    const rem100 = count % 100;
+    if (rem100 >= 5 && rem100 <= 20) return 'ответов';
+    const rem10 = count % 10;
+    if (rem10 === 1) return 'ответ';
+    if (rem10 >= 2 && rem10 <= 4) return 'ответа';
+    return 'ответов';
   };
 
-  // Строгие проверки перед рендерингом основного контента
   if (loading) {
     return (
       <Container maxWidth="md" sx={{ py: 4, display: 'flex', justifyContent: 'center', alignItems: 'center', minHeight: 'calc(100vh - 150px)' }}>
@@ -247,7 +320,6 @@ const QuestionDetailPage = () => {
   }
 
   if (!question) {
-    // Это состояние может возникнуть, если setLoading(false) произошло, но setQuestion(null) или fetch не удался без установки error
     return (
       <Container maxWidth="md" sx={{ py: 4 }}>
         <Alert severity="warning" sx={{ mt: 2 }}>Данные вопроса не доступны.</Alert>
@@ -255,10 +327,9 @@ const QuestionDetailPage = () => {
     );
   }
 
-  // Если мы дошли сюда, question точно не null
   return (
     <Container maxWidth="lg" sx={{ py: {xs: 2, md: 4} }}>
-      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 } }}>
+      <Paper elevation={0} sx={{ p: { xs: 2, md: 3 }, borderRadius: 2 }}> {/* Добавил borderRadius */}
         <Typography variant="h4" component="h1" gutterBottom sx={{wordBreak: 'break-word'}}>
           {question.title}
         </Typography>
@@ -278,17 +349,17 @@ const QuestionDetailPage = () => {
         <Divider sx={{ mb: 2 }} />
 
         <Box sx={{ display: 'flex', flexDirection: {xs: 'column', sm: 'row'} }}>
-          <Box sx={{ mr: {xs: 0, sm: 3}, mb: {xs:2, sm:0}, textAlign: 'center', minWidth: {sm:'60px'}, display: 'flex', flexDirection: {xs:'row', sm: 'column'}, alignItems: 'center', justifyContent: {xs: 'flex-start', sm: 'flex-start'} }}>
+          <Box sx={{ mr: {xs: 0, sm: 3}, mb: {xs:2, sm:0}, textAlign: 'center', minWidth: {sm:'60px'}, display: 'flex', flexDirection: {xs:'row', sm: 'column'}, alignItems: 'center', justifyContent: {xs: 'flex-start', sm: 'center'} }}>
             <Tooltip title="Полезный вопрос">
-              <IconButton onClick={() => handleQuestionVote('Up')} size="small" disabled={votingState === 'voting' || authLoading}><ThumbUpAltOutlinedIcon /></IconButton>
+              <IconButton onClick={() => handleQuestionVote('Up')} size="small" disabled={votingState === 'voting' || authLoading || !user}><ThumbUpAltOutlinedIcon /></IconButton>
             </Tooltip>
             <Typography variant="h5" component="div" sx={{ my: {sm: 0.5}, mx: {xs: 1, sm:0} }}>{question.rating ?? 0}</Typography>
             <Tooltip title="Бесполезный вопрос">
-              <IconButton onClick={() => handleQuestionVote('Down')} size="small" disabled={votingState === 'voting' || authLoading}><ThumbDownAltOutlinedIcon /></IconButton>
+              <IconButton onClick={() => handleQuestionVote('Down')} size="small" disabled={votingState === 'voting' || authLoading || !user}><ThumbDownAltOutlinedIcon /></IconButton>
             </Tooltip>
           </Box>
 
-          <Box sx={{ flexGrow: 1 }}>
+          <Box sx={{ flexGrow: 1, overflow: 'hidden' /* Для корректного рендеринга контента */ }}>
             <Box
               ref={contentRef}
               className="question-content"
@@ -299,18 +370,18 @@ const QuestionDetailPage = () => {
                 '& h2': { fontSize: '1.75em', mt: '1.2em', mb: '0.6em', lineHeight: 1.3, fontWeight: 600 },
                 '& h3': { fontSize: '1.5em', mt: '1.2em', mb: '0.6em', lineHeight: 1.3, fontWeight: 600 },
                 '& h4': { fontSize: '1.25em', mt: '1.2em', mb: '0.6em', lineHeight: 1.3, fontWeight: 600 },
-                '& ul, & ol': { pl: '2em', my: '1em' }, // Увеличил отступы для списков
-                '& li': { mb: '0.4em', lineHeight: 1.6 }, // Увеличил отступы для элементов списка
+                '& ul, & ol': { pl: '2em', my: '1em' },
+                '& li': { mb: '0.4em', lineHeight: 1.6 },
                 '& a': { color: 'primary.main', textDecoration: 'underline', '&:hover': {textDecoration: 'none'} },
                 '& img': { maxWidth: '100%', height: 'auto', borderRadius: '4px', my: 1 },
                 '& blockquote': {
                     borderLeft: (theme) => `4px solid ${theme.palette.divider}`,
                     pl: '1em', ml: 0, my: '1em', color: 'text.secondary', fontStyle: 'italic',
-                    '& p': { marginBlockStart: '0.25em', marginBlockEnd: '0.25em' } // Уменьшаем отступы параграфов внутри цитат
+                    '& p': { marginBlockStart: '0.25em', marginBlockEnd: '0.25em' }
                 },
                 '& pre, & .ql-syntax': {
-                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#272822' : '#f4f6f8',
-                  color: (theme) => theme.palette.mode === 'dark' ? '#f8f8f2' : '#212B36',
+                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#2D2D2D' : '#F8F9FA', // Немного другие цвета
+                  color: (theme) => theme.palette.mode === 'dark' ? '#F8F8F2' : '#212B36',
                   border: (theme) => `1px solid ${theme.palette.divider}`,
                   padding: '12px 16px', my: '16px', borderRadius: '8px', overflowX: 'auto',
                   fontFamily: '"Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace',
@@ -321,11 +392,11 @@ const QuestionDetailPage = () => {
                   color: 'inherit', padding: 0, margin: 0, borderRadius: 0,
                   whiteSpace: 'inherit', display: 'block',
                 },
-                '& code:not(pre code)': {
+                '& code:not(pre code):not(.ql-syntax code)': {
                   fontFamily: '"Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace',
-                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(145, 158, 171, 0.16)' : 'rgba(145, 158, 171, 0.12)',
+                  backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(145, 158, 171, 0.16)' : 'rgba(222, 226, 230, 0.5)', // Чуть светлее инлайн
                   padding: '2px 6px', margin: '0 2px', fontSize: '13px', borderRadius: '6px',
-                  wordBreak: 'break-all', color: (theme) => theme.palette.mode === 'dark' ? '#E3E3E3' : '#37474F'
+                  wordBreak: 'break-all', color: (theme) => theme.palette.mode === 'dark' ? '#E0E0E0' : '#343A40' // Темнее текст для инлайна
                 },
               }}
               dangerouslySetInnerHTML={{ __html: sanitizedHtml(question.content) }}
@@ -348,7 +419,12 @@ const QuestionDetailPage = () => {
                 <List disablePadding sx={{mt: 2}}>
                 {question.answers.map(answer => (
                     <ListItem key={answer.id} disablePadding sx={{ display: 'block', mb: 2 }}>
-                    <AnswerCard answer={answer} onVote={handleAnswerVoteUpdate} questionAuthorId={question.author.id} />
+                    <AnswerCard
+                        answer={answer}
+                        onVote={handleAnswerVoteUpdate}
+                        questionAuthorId={question.author.id}
+                        onAcceptAnswer={handleAcceptAnswerConfirmed}
+                     />
                     </ListItem>
                 ))}
                 </List>
@@ -361,7 +437,7 @@ const QuestionDetailPage = () => {
           </Box>
         )}
          {!user && !authLoading && (
-            <Alert severity="info" sx={{mt: 4}}>
+            <Alert severity="info" sx={{mt: 4, borderRadius: 2}}>
                 <MuiLink component={RouterLink} to="/login" state={{ from: location.pathname }} fontWeight="bold">Войдите</MuiLink>, чтобы оставить ответ.
             </Alert>
          )}
@@ -369,7 +445,7 @@ const QuestionDetailPage = () => {
 
       <Snackbar
         open={snackbarOpen}
-        autoHideDuration={2500}
+        autoHideDuration={3000} // Увеличил немного
         onClose={() => setSnackbarOpen(false)}
         message={snackbarMessage}
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}

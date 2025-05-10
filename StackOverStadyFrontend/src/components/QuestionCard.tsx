@@ -1,11 +1,12 @@
+// src/components/QuestionCard.tsx
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
 import { Paper, Box, Typography, Chip, Avatar, Link, Tooltip } from '@mui/material';
-import { formatDistanceToNow, parseISO } from 'date-fns'; // Добавил parseISO
+import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
-import AccountCircleIcon from '@mui/icons-material/AccountCircle'; // Placeholder
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import CheckCircleOutlineIcon from '@mui/icons-material/CheckCircleOutline';
 
-// Убедитесь, что этот интерфейс соответствует данным, приходящим для списка вопросов
 export interface QuestionSummaryDto {
   id: number;
   title: string;
@@ -14,11 +15,12 @@ export interface QuestionSummaryDto {
   author: {
     id: number;
     name: string;
-    pictureUrl: string | null; // <--- ИЗМЕНЕНИЕ: теперь string | null
+    pictureUrl: string | null;
   };
   tags: { id: number; name: string }[];
   answerCount: number;
   rating: number;
+  hasAcceptedAnswer: boolean;
 }
 
 interface QuestionCardProps {
@@ -26,10 +28,67 @@ interface QuestionCardProps {
 }
 
 const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
-  const timeAgo = formatDistanceToNow(parseISO(question.createdAt), { // Используем parseISO
+  const timeAgo = formatDistanceToNow(parseISO(question.createdAt), {
     addSuffix: true,
     locale: ru,
   });
+
+  const hasAnyAnswer = question.answerCount > 0;
+  const isSolved = question.hasAcceptedAnswer;
+
+  let answerBlockStyles = {};
+  let answerBlockContent;
+  let answerBlockTooltip = "";
+
+  if (isSolved) {
+    answerBlockTooltip = "Вопрос решён";
+    answerBlockStyles = {
+      border: '1px solid',
+      borderColor: 'success.main',
+      backgroundColor: (theme: { palette: { mode: string; success: { main: any; light: any; }; }; }) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.25)' : 'rgba(232, 245, 233, 0.8)',
+      color: 'success.dark',
+    };
+    answerBlockContent = (
+      <>
+        <CheckCircleOutlineIcon sx={{ fontSize: '1.7rem', mb: 0.25 }} />
+        <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block', fontWeight: 500 }}>
+          решён
+        </Typography>
+      </>
+    );
+  } else if (hasAnyAnswer) {
+    answerBlockTooltip = `${question.answerCount} ${question.answerCount === 1 ? 'ответ' : (question.answerCount > 1 && question.answerCount < 5 ? 'ответа' : 'ответов')}`;
+    answerBlockStyles = {
+      backgroundColor: 'transparent',
+      color: 'text.secondary',
+    };
+    answerBlockContent = (
+      <>
+        <Typography variant="h6" fontWeight="medium">
+          {question.answerCount}
+        </Typography>
+        <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block' }}>
+          {question.answerCount === 1 ? 'ответ' : (question.answerCount > 1 && question.answerCount < 5 ? 'ответа' : 'ответов')}
+        </Typography>
+      </>
+    );
+  } else {
+    answerBlockTooltip = "Нет ответов";
+    answerBlockStyles = {
+      color: 'text.disabled',
+      backgroundColor: 'transparent',
+    };
+    answerBlockContent = (
+      <>
+        <Typography variant="h6" fontWeight="medium">
+          0
+        </Typography>
+        <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block' }}>
+          ответов
+        </Typography>
+      </>
+    );
+  }
 
   return (
     <Paper
@@ -37,28 +96,36 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
       sx={{
         display: 'flex',
         border: '1px solid',
+        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Общая рамка карточки теперь всегда 'divider'
+        // или можно сделать ее чуть темнее при наведении, но не зеленой по умолчанию для решенных
         borderColor: 'divider',
         overflow: 'hidden',
-        borderRadius: 1,
+        borderRadius: 2,
         flexDirection: { xs: 'column', md: 'row' },
+        transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
         '&:hover': {
-            borderColor: 'primary.main',
-            boxShadow: (theme) => theme.shadows[1],
-        }
+            borderColor: 'primary.main', // При наведении рамка становится основной
+            boxShadow: (theme) => `0 4px 12px ${theme.palette.action.hover}`,
+        },
+        // Легкий фон для всей карточки если решен, может остаться, он не так бросается в глаза
+        // Если хочешь убрать и его, то сделай:
+        // backgroundColor: 'transparent',
+        backgroundColor: isSolved ? (theme) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.05)' : 'rgba(232, 245, 233, 0.2)' : 'transparent',
       }}
     >
+      {/* Блок с рейтингом и ответами */}
       <Box
         sx={{
           p: { xs: 1.5, md: 2 },
           bgcolor: 'action.hover',
           textAlign: 'center',
-          width: { xs: '100%', md: '100px' }, // Чуть шире для лучшего вида
-          minWidth: { xs: '100%', md: '100px' },
+          width: { xs: '100%', md: '110px' },
+          minWidth: { xs: '100%', md: '110px' },
           display: 'flex',
-          flexDirection: {xs: 'row', md: 'column'}, // Для мобильных в строку
+          flexDirection: {xs: 'row', md: 'column'},
           justifyContent: {xs: 'space-around', md:'center'},
           alignItems: 'center',
-          gap: {xs:1, md:0.5},
+          gap: {xs:1, md:1},
           borderRight: { md: '1px solid' },
           borderBottom: { xs: '1px solid', md: 'none' },
           borderColor: 'divider',
@@ -72,30 +139,30 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
             голосов
             </Typography>
         </Box>
-        <Box sx={{textAlign: 'center'}}>
-            <Typography
-            variant="body1"
-            fontWeight={question.answerCount > 0 ? "bold" : "medium"}
-            color={question.answerCount > 0 ? 'success.main' : 'text.secondary'}
-            sx={{
-                border: question.answerCount > 0 ? '1px solid' : 'none',
-                borderColor: question.answerCount > 0 ? 'success.light' : 'transparent',
-                borderRadius: '4px',
-                px: question.answerCount > 0 ? 0.75 : 0,
-                py: question.answerCount > 0 ? 0.25 : 0,
-                minWidth: '24px',
-                display: 'inline-block'
-            }}
+
+        <Tooltip title={answerBlockTooltip} placement="top">
+            <Box
+                sx={{
+                    textAlign: 'center',
+                    borderRadius: '8px',
+                    px: 1,
+                    py: 0.5,
+                    minWidth: '60px',
+                    display: 'flex',
+                    flexDirection: 'column',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    transition: 'all 0.3s ease',
+                    ...answerBlockStyles
+                }}
             >
-            {question.answerCount}
-            </Typography>
-            <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>
-            ответов
-            </Typography>
-        </Box>
+            {answerBlockContent}
+            </Box>
+        </Tooltip>
       </Box>
 
-      <Box sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', justifyContent: 'space-between' }}>
+      {/* Основной контент карточки */}
+      <Box sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
         <div>
             <Typography
                 variant="h6"
@@ -104,7 +171,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                     mb: 1,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
-                    whiteSpace: 'nowrap',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    lineHeight: 1.3,
+                    minHeight: '2.6em',
                 }}
             >
             <Link
@@ -112,7 +183,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                 to={`/questions/${question.id}`}
                 underline="hover"
                 color="text.primary"
-                sx={{ fontWeight: 500 }} // Средний вес
+                sx={{ fontWeight: 500 }}
             >
                 {question.title}
             </Link>
@@ -128,11 +199,10 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                 display: '-webkit-box',
                 WebkitLineClamp: 2,
                 WebkitBoxOrient: 'vertical',
-                maxHeight: '2.8em', // Примерно 2 строки
+                maxHeight: '2.8em',
                 lineHeight: '1.4em',
             }}
             >
-            {/* Здесь лучше бы иметь краткое описание или начало текста, очищенное от HTML */}
             {question.content.replace(/<[^>]*>?/gm, '').substring(0, 150) + (question.content.length > 150 ? '...' : '')}
             </Typography>
 
