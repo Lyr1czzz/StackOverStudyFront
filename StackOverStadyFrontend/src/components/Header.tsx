@@ -168,7 +168,7 @@ const Header = () => {
       >
         <Box
           sx={{
-            maxWidth: 'xl', // Можно использовать стандартные брейкпоинты MUI
+            maxWidth: '1200px', // Можно использовать стандартные брейкпоинты MUI
             width: '100%',
             mx: 'auto',
             display: 'flex',

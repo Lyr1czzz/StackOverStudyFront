@@ -1,28 +1,29 @@
 // src/pages/HomePage.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react'; // Добавил useRef
+import React, { useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 import {
   Box, Typography, CircularProgress, Alert, Button,
   TextField, Collapse, Stack, Pagination,
-  IconButton, Paper, Link as MuiLink
+  IconButton, Paper,
+  Link as MuiLink // <--- ДОБАВЬ ЭТУ СТРОКУ
 } from '@mui/material';
-import { Link as RouterLink, useSearchParams } from 'react-router-dom'; // Убрал useNavigate, если не используется для другого
+import { Link as RouterLink, useSearchParams, useNavigate } from 'react-router-dom';
 import QuestionCard from '../components/QuestionCard';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 
+// ... остальной код файла HomePage.tsx без изменений ...
+
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
 
-// ... интерфейсы UserSummary, TagSummary, QuestionSummary, PaginatedResponse ...
-// (они должны быть такими же, как в предыдущих версиях, включая hasAcceptedAnswer в QuestionSummary)
-export interface UserSummary {
+interface UserSummary {
   id: number;
   name: string;
   pictureUrl: string | null;
 }
 
-export interface TagSummary {
+interface TagSummary {
   id: number;
   name: string;
 }
@@ -43,7 +44,6 @@ interface PaginatedResponse<T> {
   totalCount: number;
 }
 
-
 const HomePage = () => {
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [loading, setLoading] = useState(true);
@@ -52,73 +52,36 @@ const HomePage = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // Состояния, которые напрямую влияют на запрос API и URL
-  const [sortOrder, setSortOrder] = useState<'newest' | 'votes' | 'active'>(() => (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest');
-  const [tagFilter, setTagFilter] = useState<string>(() => searchParams.get('tags') || '');
-  const [searchText, setSearchText] = useState<string>(() => searchParams.get('search') || '');
-  const [page, setPage] = useState<number>(() => parseInt(searchParams.get('page') || '1', 10));
-
+  const [sortOrder, setSortOrder] = useState<'newest' | 'votes' | 'active'>(
+    (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest'
+  );
+  const [tagFilter, setTagFilter] = useState<string>(searchParams.get('tags') || '');
+  const [searchText, setSearchText] = useState<string>(searchParams.get('search') || '');
+  const [page, setPage] = useState<number>(parseInt(searchParams.get('page') || '1', 10));
   const [pageSize] = useState<number>(10);
   const [totalItems, setTotalItems] = useState(0);
 
-  // Локальные состояния для полей ввода фильтров (управляемые компоненты)
   const [currentSearchText, setCurrentSearchText] = useState<string>(searchText);
   const [currentTagFilter, setCurrentTagFilter] = useState<string>(tagFilter);
 
-  // Флаг, чтобы избежать первоначального двойного запроса при монтировании
-  const isMounted = useRef(false);
 
-  // Эффект для синхронизации состояний с параметрами URL при их изменении извне
-  useEffect(() => {
-    const urlSort = (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest';
-    const urlTags = searchParams.get('tags') || '';
-    const urlSearch = searchParams.get('search') || '';
-    const urlPage = parseInt(searchParams.get('page') || '1', 10);
-
-    // Обновляем состояния, только если они действительно отличаются от текущих в URL
-    // Это помогает избежать лишних ререндеров, если URL меняется кодом этого же компонента
-    if (urlSort !== sortOrder) setSortOrder(urlSort);
-    if (urlTags !== tagFilter) {
-        setTagFilter(urlTags);
-        setCurrentTagFilter(urlTags); // Синхронизируем поле ввода
-    }
-    if (urlSearch !== searchText) {
-        setSearchText(urlSearch);
-        setCurrentSearchText(urlSearch); // Синхронизируем поле ввода
-    }
-    if (urlPage !== page) setPage(urlPage);
-
-  }, [searchParams]); // Зависимость только от searchParams
-
-
-  const fetchQuestions = useCallback(async (
-    currentPage: number,
-    currentSort: string,
-    currentTags: string,
-    currentSearchQuery: string
-  ) => {
+  const fetchQuestions = useCallback(async () => {
     setLoading(true);
     setError(null);
 
     const params = new URLSearchParams();
-    params.append('sort', currentSort);
-    if (currentTags) params.append('tags', currentTags);
-    if (currentSearchQuery) params.append('search', currentSearchQuery);
-    params.append('page', currentPage.toString());
+    params.append('sort', sortOrder);
+    if (tagFilter) params.append('tags', tagFilter);
+    if (searchText) params.append('search', searchText);
+    params.append('page', page.toString());
     params.append('pageSize', pageSize.toString());
 
-    // Формируем объект для setSearchParams, чтобы URL был чистым
-    const newSearchParams: Record<string, string> = {};
-    if (currentPage > 1) newSearchParams.page = currentPage.toString(); // Не добавляем page=1
-    if (currentSort !== 'newest') newSearchParams.sort = currentSort; // Не добавляем sort=newest (дефолт)
-    if (currentTags) newSearchParams.tags = currentTags;
-    if (currentSearchQuery) newSearchParams.search = currentSearchQuery;
-
-    // Обновляем URL. `replace: true` чтобы не засорять историю браузера при каждом изменении фильтра
-    setSearchParams(newSearchParams, { replace: true });
+    const currentSearchParams: Record<string, string> = { page: page.toString(), sort: sortOrder };
+    if (tagFilter) currentSearchParams.tags = tagFilter;
+    if (searchText) currentSearchParams.search = searchText;
+    setSearchParams(currentSearchParams, { replace: true });
 
     try {
-      console.log('Fetching questions with params:', params.toString()); // Для отладки
       const response = await axios.get<PaginatedResponse<QuestionSummary>>(
         `${API_URL}/Questions`, { params }
       );
@@ -128,61 +91,65 @@ const HomePage = () => {
       console.error("Error fetching questions:", err);
       if (axios.isAxiosError(err)) {
         const errData = err.response?.data as { message?: string };
-        setError(`Не удалось загрузить список вопросов. ${errData?.message || 'Ошибка сервера'}`);
+        setError(`Не удалось загрузить список вопросов. ${errData?.message || ''}`);
       } else {
         setError("Произошла неизвестная ошибка при загрузке вопросов.");
       }
     } finally {
       setLoading(false);
     }
-  }, [pageSize, setSearchParams]); // Зависимости useCallback: pageSize и setSearchParams
+  }, [page, pageSize, sortOrder, tagFilter, searchText, setSearchParams]);
 
-  // Основной эффект для загрузки данных при изменении состояний фильтров/пагинации/сортировки
   useEffect(() => {
-    if (isMounted.current) { // Загружаем данные только после первого рендера и если состояния изменились
-      fetchQuestions(page, sortOrder, tagFilter, searchText);
-    } else {
-      // При первом монтировании, значения уже взяты из URL,
-      // и мы хотим выполнить начальную загрузку с этими значениями.
-      // Если URL пуст, то используются дефолтные значения.
-      fetchQuestions(page, sortOrder, tagFilter, searchText);
-      isMounted.current = true;
+    fetchQuestions();
+  }, [fetchQuestions]);
+
+
+  useEffect(() => {
+    const newPage = parseInt(searchParams.get('page') || '1', 10);
+    const newSortOrder = (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest';
+    const newTagFilter = searchParams.get('tags') || '';
+    const newSearchText = searchParams.get('search') || '';
+
+    if (newPage !== page) setPage(newPage);
+    if (newSortOrder !== sortOrder) setSortOrder(newSortOrder);
+    if (newTagFilter !== tagFilter) {
+        setTagFilter(newTagFilter);
+        setCurrentTagFilter(newTagFilter);
     }
-  }, [page, sortOrder, tagFilter, searchText, fetchQuestions]);
+    if (newSearchText !== searchText) {
+        setSearchText(newSearchText);
+        setCurrentSearchText(newSearchText);
+    }
+  }, [searchParams, page, sortOrder, tagFilter, searchText]);
 
 
   const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
-    setPage(value); // Изменение page вызовет useEffect -> fetchQuestions
-  };
-
-  const handleSortChange = (newSortOrder: 'newest' | 'votes' | 'active') => {
-    setSortOrder(newSortOrder);
-    setPage(1); // Сброс на первую страницу при смене сортировки
+    setPage(value);
   };
 
   const handleApplyFilters = () => {
-    // Проверяем, изменились ли значения в полях ввода по сравнению с активными фильтрами
-    const searchChanged = currentSearchText !== searchText;
-    const tagsChanged = currentTagFilter !== tagFilter;
-
-    if (searchChanged || tagsChanged) {
-        // Если что-то изменилось, обновляем активные фильтры и сбрасываем на 1 страницу
-        if (searchChanged) setSearchText(currentSearchText);
-        if (tagsChanged) setTagFilter(currentTagFilter);
+    let changed = false;
+    if (currentSearchText !== searchText) {
+        setSearchText(currentSearchText);
+        changed = true;
+    }
+    if (currentTagFilter !== tagFilter) {
+        setTagFilter(currentTagFilter);
+        changed = true;
+    }
+    if (changed || page !== 1) {
         setPage(1);
     }
-    // Если ничего не изменилось в полях, никаких действий не требуется,
-    // т.к. данные уже загружены с текущими searchText и tagFilter
   };
 
   const handleClearTagFilter = () => {
-    setCurrentTagFilter(''); // Очищаем поле ввода
-    if (tagFilter !== '') { // Если активный фильтр был установлен
-        setTagFilter('');     // Очищаем активный фильтр
-        setPage(1);           // Сбрасываем на первую страницу
+    setCurrentTagFilter('');
+    if (tagFilter !== '') {
+        setTagFilter('');
+        setPage(1);
     }
   };
-
   const handleClearSearchFilter = () => {
     setCurrentSearchText('');
     if (searchText !== '') {
@@ -191,19 +158,20 @@ const HomePage = () => {
     }
   }
 
+
   const pageCount = Math.ceil(totalItems / pageSize);
-  const effectivePageTitle = tagFilter ? `Тег: "${tagFilter.split(',').map(t => t.trim()).filter(Boolean).join('", "')}"` : (searchText ? `Поиск: "${searchText}"`: 'Все вопросы');
+  const effectivePageTitle = tagFilter ? `Вопросы с тегом "${tagFilter.split(',').map(t => t.trim()).filter(Boolean).join('", "')}"` : (searchText ? `Результаты поиска по "${searchText}"`: 'Все вопросы');
 
   return (
-    <Box sx={{ maxWidth: {xs: '100%', md: 900}, mx: 'auto', px: {xs: 1, sm: 2} }}>
+    <Box>
       <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mb: 2, flexWrap: 'wrap', gap: 1 }}>
         <Box>
-          <Typography variant="h5" component="h1" sx={{fontSize: {xs: '1.5rem', sm: '1.75rem', md: '2rem'} }}>
+          <Typography variant="h5" component="h1" sx={{fontSize: {xs: '1.5rem', sm: '1.75rem', md: '2rem'}}}>
             {effectivePageTitle}
           </Typography>
-          {totalItems > 0 && !loading && ( // Показываем количество только если есть и не идет загрузка
+          {totalItems > 0 && (
             <Typography variant="body2" color="text.secondary">
-                Найдено: {totalItems.toLocaleString()} вопрос{totalItems % 10 === 1 && totalItems % 100 !== 11 ? '' : (totalItems % 10 >= 2 && totalItems % 10 <= 4 && (totalItems % 100 < 10 || totalItems % 100 >= 20) ? 'а' : 'ов')}
+                {totalItems.toLocaleString()} вопрос{totalItems % 10 === 1 && totalItems % 100 !== 11 ? '' : (totalItems % 10 >= 2 && totalItems % 10 <= 4 && (totalItems % 100 < 10 || totalItems % 100 >= 20) ? 'а' : 'ов')}
             </Typography>
           )}
         </Box>
@@ -223,13 +191,16 @@ const HomePage = () => {
           >
             Фильтры { (tagFilter || searchText) && `(${(tagFilter ? 1:0) + (searchText ? 1:0)})` }
           </Button>
-          <Stack direction="row" spacing={{xs: 0.5, sm:1}} sx={{flexWrap: 'wrap', justifyContent: 'center', gap: 0.5 /* Добавил gap для переноса */}}>
+          <Stack direction="row" spacing={{xs: 0.5, sm:1}} sx={{flexWrap: 'wrap', justifyContent: 'center'}}>
             {(['newest', 'votes', 'active'] as const).map((s) => (
               <Button
                 key={s}
                 variant={sortOrder === s ? 'contained' : 'outlined'}
                 size="small"
-                onClick={() => handleSortChange(s)}
+                onClick={() => {
+                  setSortOrder(s);
+                  setPage(1);
+                }}
                 sx={{minWidth: {xs: '70px', sm: '80px'}}}
               >
                 {s === 'newest' ? 'Новые' : s === 'votes' ? 'Топ' : 'Активные'}
@@ -249,7 +220,6 @@ const HomePage = () => {
                 fullWidth
                 size="small"
                 InputProps={{
-                    startAdornment: <SearchIcon sx={{mr:1, color:'action.active'}}/>,
                     endAdornment: currentSearchText && (
                         <IconButton onClick={handleClearSearchFilter} edge="end" size="small" title="Очистить поиск">
                             <ClearIcon fontSize="small"/>
@@ -277,11 +247,11 @@ const HomePage = () => {
               <Button
                 onClick={handleApplyFilters}
                 variant="contained"
-                // startIcon={<SearchIcon />} // Убрал, т.к. иконка есть в поле поиска
+                startIcon={<SearchIcon />}
                 disabled={loading || (currentSearchText === searchText && currentTagFilter === tagFilter)}
                 sx={{alignSelf: 'flex-start'}}
               >
-                Применить фильтры
+                Применить
               </Button>
             </Stack>
           </Box>
@@ -301,7 +271,7 @@ const HomePage = () => {
             По вашему запросу ничего не найдено.
           </Typography>
           <Typography sx={{mt: 1}}>
-            Попробуйте изменить фильтры или <MuiLink component={RouterLink} to="/ask" fontWeight="bold">задайте свой вопрос</MuiLink>!
+            Попробуйте изменить фильтры или <MuiLink component={RouterLink} to="/ask" fontWeight="bold">задайте свой вопрос</MuiLink>! {/* Здесь используется MuiLink */}
           </Typography>
         </Paper>
       )}
@@ -314,7 +284,7 @@ const HomePage = () => {
         </Stack>
       )}
 
-      {pageCount > 1 && !loading && questions.length > 0 && ( // Показываем пагинацию только если есть вопросы
+      {pageCount > 1 && !loading && (
         <Box sx={{ mt: 4, display: 'flex', justifyContent: 'center' }}>
           <Pagination
             count={pageCount}
