@@ -1,4 +1,3 @@
-// src/pages/AskQuestionPage.tsx
 import React, { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import axios from 'axios';
@@ -11,46 +10,47 @@ import {
   Alert,
   Autocomplete,
   Chip,
-  FormControl,    // Для error state и helper text
+  FormControl,
   FormHelperText,
-  FormLabel,      // Вместо InputLabel для большей гибкости
+  FormLabel,
+  useTheme,
+  Paper,
 } from '@mui/material';
-import { useAuth } from '../AuthContext'; // Проверьте путь
+import { useAuth } from '../AuthContext';
 import RichTextEditor from '../components/RichTextEditor';
 
 interface TagOption {
   id: number;
   name: string;
+  inputValue?: string;
 }
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const MAX_TAG_LENGTH = 30;
+const MAX_TAGS_COUNT = 5;
 
-const debounce = <F extends (...args: any[]) => any>(func: F, waitFor: number) => {
+const debounce = <F extends (...args: any[]) => Promise<void>>(func: F, waitFor: number) => {
   let timeout: ReturnType<typeof setTimeout> | null = null;
-  return (...args: Parameters<F>): Promise<ReturnType<F>> =>
-    new Promise(resolve => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => resolve(func(...args)), waitFor);
-    });
+  return (...args: Parameters<F>): void => {
+    if (timeout) clearTimeout(timeout);
+    timeout = setTimeout(() => func(...args), waitFor);
+  };
 };
 
 const AskQuestionPage = () => {
   const navigate = useNavigate();
   const { user, loading: authLoading, login } = useAuth();
+  const theme = useTheme();
 
   const [title, setTitle] = useState('');
   const [titleError, setTitleError] = useState<string | null>(null);
-
   const [content, setContent] = useState('');
   const [contentError, setContentError] = useState<string | null>(null);
-
   const [selectedTags, setSelectedTags] = useState<TagOption[]>([]);
   const [tagsError, setTagsError] = useState<string | null>(null);
-
   const [tagInput, setTagInput] = useState('');
   const [tagSuggestions, setTagSuggestions] = useState<TagOption[]>([]);
   const [tagLoading, setTagLoading] = useState(false);
-
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
@@ -72,90 +72,125 @@ const AskQuestionPage = () => {
     }
   };
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line
   const debouncedFetchTags = useCallback(debounce(async (query: string) => {
     const suggestions = await fetchTagSuggestions(query);
     setTagSuggestions(suggestions);
-  }, 300), [API_URL]);
+  }, 300), []);
 
   useEffect(() => {
-    if (tagInput.trim()) {
-      debouncedFetchTags(tagInput);
+    const trimmedInput = tagInput.trim();
+    if (trimmedInput && trimmedInput.length >= 1) {
+      debouncedFetchTags(trimmedInput);
     } else {
       setTagSuggestions([]);
     }
   }, [tagInput, debouncedFetchTags]);
 
+  // --- Валидация и сброс ошибок при изменении полей ---
+  useEffect(() => {
+    if (title.trim().length >= 5 && title.trim().length <= 200) {
+      setTitleError(null);
+    }
+  }, [title]);
+
+  useEffect(() => {
+    if (content.replace(/<[^>]*>?/gm, '').trim().length >= 20) {
+      setContentError(null);
+    }
+  }, [content]);
+
+  useEffect(() => {
+    if (selectedTags.length > 0 && selectedTags.length <= MAX_TAGS_COUNT) {
+      setTagsError(null);
+    }
+  }, [selectedTags]);
+  // -----------------------------------------------------
+
+
   const validateForm = (): boolean => {
     let isValid = true;
-    setTitleError(null);
-    setContentError(null);
-    setTagsError(null);
-    setSubmitError(null);
+    // Сбрасываем только submitError, ошибки полей будут проверены ниже
+    setSubmitError(null); 
 
-    if (!title.trim() || title.trim().length < 5 || title.trim().length > 200) {
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle || trimmedTitle.length < 5 || trimmedTitle.length > 200) {
       setTitleError("Заголовок должен содержать от 5 до 200 символов.");
       isValid = false;
+    } else {
+      setTitleError(null); // Сбрасываем, если валидно
     }
-    const textOnlyContent = content.replace(/<[^>]*>?/gm, '');
-    if (!textOnlyContent.trim() || textOnlyContent.trim().length < 20) {
+
+    const textOnlyContent = content.replace(/<[^>]*>?/gm, '').trim();
+    if (!textOnlyContent || textOnlyContent.length < 20) {
       setContentError("Содержимое вопроса должно содержать не менее 20 видимых символов.");
       isValid = false;
+    } else {
+      setContentError(null); // Сбрасываем, если валидно
     }
-    if (selectedTags.length === 0 || selectedTags.length > 5) {
-      setTagsError("Необходимо выбрать от 1 до 5 тегов.");
+
+    if (selectedTags.length === 0) {
+      setTagsError("Необходимо выбрать хотя бы один тег.");
       isValid = false;
+    } else if (selectedTags.length > MAX_TAGS_COUNT) {
+      setTagsError(`Можно выбрать не более ${MAX_TAGS_COUNT} тегов.`);
+      isValid = false;
+    } else {
+      setTagsError(null); // Сбрасываем, если валидно
     }
     return isValid;
   };
 
   const handleContentChange = (value: string) => {
     setContent(value);
-    const textOnly = value.replace(/<[^>]*>?/gm, '');
-    if (textOnly.trim().length >= 20 && contentError) { // Сбрасываем ошибку, только если она была
-      setContentError(null);
-    }
+    // Проверка и сброс ошибки contentError перенесены в useEffect [content]
   };
 
   const handleSubmit = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    if (!validateForm()) {
+    if (!validateForm()) { // validateForm теперь сама сбрасывает ошибки полей, если они стали валидны
       setSubmitError("Пожалуйста, исправьте ошибки в форме.");
       return;
     }
-    if (authLoading) {
-      setSubmitError("Подождите, идет проверка аутентификации...");
+    if (authLoading || !user) {
+      setSubmitError('Необходима авторизация. Пожалуйста, войдите.');
+      if(!authLoading && !user && login) login();
       return;
     }
-    if (!user) {
-      setSubmitError('Вы должны быть авторизованы, чтобы задать вопрос.');
-      return;
-    }
+
     const questionData = {
       title: title.trim(),
       content: content,
-      tags: selectedTags.map(tag => tag.name),
+      tags: selectedTags.map(tag => tag.name.trim().toLowerCase()),
     };
+
     setIsSubmitting(true);
     try {
-      const response = await axios.post<{ id: number }>(
-        `${API_URL}/Questions`,
-        questionData,
-        { withCredentials: true }
-      );
+      const response = await axios.post<{ id: number }>(`${API_URL}/Questions`, questionData, { withCredentials: true });
       navigate(`/questions/${response.data.id}`);
     } catch (error) {
       console.error('AskQuestionPage: Ошибка создания вопроса:', error);
       let errorMessage = 'Не удалось создать вопрос.';
       if (axios.isAxiosError(error)) {
         if (error.response) {
-          if (error.response.status === 400 && error.response.data?.errors) {
-            const messages = Object.values(error.response.data.errors).flat().join(' ');
-            errorMessage = `Ошибка валидации: ${messages || 'Проверьте введенные данные.'}`;
-          } else if (error.response.data?.message || error.response.data?.title) {
-            errorMessage = `Ошибка ${error.response.status}: ${error.response.data.message || error.response.data.title}`;
-          } else if (typeof error.response.data === 'string') {
-            errorMessage = `Ошибка ${error.response.status}: ${error.response.data}`;
+          const data = error.response.data;
+          if (error.response.status === 400 && data?.errors) {
+            const errorObject = data.errors as Record<string, string[]>;
+            // Обновляем конкретные ошибки полей, если они пришли с бэкенда
+            if (errorObject.Title) setTitleError(errorObject.Title.join(' '));
+            if (errorObject.Content) setContentError(errorObject.Content.join(' '));
+            if (errorObject.Tags) setTagsError(errorObject.Tags.join(' '));
+            
+            const generalErrors = Object.entries(errorObject)
+                .filter(([key]) => !['Title', 'Content', 'Tags'].includes(key))
+                .map(([, value]) => value.join(' '))
+                .join(' ');
+            errorMessage = generalErrors ? `Ошибка валидации: ${generalErrors}` : "Проверьте введенные данные.";
+
+          } else if (data?.message || data?.title) {
+            errorMessage = `Ошибка ${error.response.status}: ${data.message || data.title}`;
+          } else if (typeof data === 'string' && data.length < 300) {
+            errorMessage = `Ошибка ${error.response.status}: ${data}`;
           } else {
              errorMessage = `Ошибка сервера (${error.response.status}). Пожалуйста, попробуйте позже.`;
           }
@@ -170,24 +205,23 @@ const AskQuestionPage = () => {
   };
 
   if (authLoading) {
-    return (
-      <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: '80vh' }}>
-        <CircularProgress /> <Typography sx={{ ml: 2 }}>Проверка пользователя...</Typography>
-      </Box>
-    );
+    return <Box sx={{ display: 'flex', justifyContent: 'center', alignItems: 'center', height: 'calc(100vh - 128px)' }}><CircularProgress /> <Typography sx={{ ml: 2 }}>Проверка пользователя...</Typography></Box>;
+  }
+  if (!user) {
+    return <Paper sx={{ padding: { xs: 2, sm: 3, md: 4 }, maxWidth: '600px', margin: 'auto', textAlign: 'center', mt: {xs: 2, md: 5} }}><Alert severity="warning" sx={{ mb: 3 }}>Чтобы задать вопрос, необходимо авторизоваться.</Alert><Button variant="contained" onClick={login} size="large">Войти</Button></Paper>;
   }
 
-  if (!user) {
-    return (
-      <Box sx={{ padding: 4, maxWidth: '600px', margin: 'auto', textAlign: 'center', mt: 5 }}>
-        <Alert severity="warning" sx={{ mb: 3 }}>Чтобы задать вопрос, необходимо авторизоваться.</Alert>
-        <Button variant="contained" onClick={login} size="large">Войти</Button>
-      </Box>
-    );
-  }
+  // Определяем, активна ли кнопка
+  const isFormValidForSubmit = 
+        title.trim().length >= 5 && title.trim().length <= 200 &&
+        content.replace(/<[^>]*>?/gm, '').trim().length >= 20 &&
+        selectedTags.length > 0 && selectedTags.length <= MAX_TAGS_COUNT;
+
+  const isButtonDisabled = isSubmitting || !isFormValidForSubmit || !!titleError || !!contentError || !!tagsError;
+
 
   return (
-    <Box sx={{ padding: { xs: 2, sm: 4 }, maxWidth: '800px', margin: 'auto' }}>
+    <Paper sx={{ p: { xs: 2, sm: 3, md: 4 } }}>
       <Typography variant="h4" component="h1" gutterBottom sx={{ mb: 3 }}>
         Задать новый вопрос
       </Typography>
@@ -199,87 +233,110 @@ const AskQuestionPage = () => {
           value={title}
           onChange={(e) => {
             setTitle(e.target.value);
-            if (e.target.value.trim().length >= 5 && e.target.value.trim().length <= 200) setTitleError(null);
+            // Валидация "на лету" для подсказки, но основная при сабмите
+            const trimmed = e.target.value.trim();
+            if (trimmed && (trimmed.length < 5 || trimmed.length > 200)) {
+                setTitleError("Заголовок: 5-200 символов.");
+            } else {
+                setTitleError(null);
+            }
           }}
           required
           margin="normal"
           disabled={isSubmitting}
-          inputProps={{ minLength: 5, maxLength: 200 }}
-          error={!!titleError}
-          helperText={titleError || "Кратко и ясно опишите суть проблемы (5-200 символов)."}
+          error={!!titleError} // Показываем ошибку, если она есть
+          helperText={titleError || "Кратко и ясно опишите суть проблемы."}
         />
 
         <FormControl fullWidth margin="normal" error={!!contentError} disabled={isSubmitting}>
-          <FormLabel component="legend" sx={{ mb: 1, fontSize: '0.9rem', color: !!contentError ? 'error.main' : 'text.secondary' }}>
-            Подробное описание проблемы
+          <FormLabel component="legend" sx={{ mb: 1, fontSize: '0.875rem', color: !!contentError ? 'error.main' : 'text.secondary' }}>
+            Подробное описание проблемы*
           </FormLabel>
-          <RichTextEditor
-            value={content}
-            onChange={handleContentChange}
-            placeholder="Опишите детали: что вы пытались сделать, какой результат ожидали и что получили..."
-            
-          />
-          <FormHelperText error={!!contentError}>
-            {contentError || "Минимум 20 видимых символов. Используйте панель для форматирования."}
-          </FormHelperText>
+          <Box sx={{ /* ... стили для Box RichTextEditor ... */ 
+            border: 1, borderColor: contentError ? theme.palette.error.main : theme.palette.divider, overflow: 'hidden', '&:hover': { borderColor: contentError ? theme.palette.error.main : theme.palette.action.active, }, '&.Mui-focused, &:focus-within': { borderColor: contentError ? theme.palette.error.main : theme.palette.primary.main, borderWidth: '1px', }, '.ql-toolbar': { borderBottom: `1px solid ${theme.palette.divider}`, backgroundColor: theme.palette.action.hover, borderTopLeftRadius: theme.shape.borderRadius, borderTopRightRadius: theme.shape.borderRadius, }, '.ql-container': { minHeight: '200px', fontSize: '1rem', fontFamily: theme.typography.fontFamily, backgroundColor: theme.palette.background.paper, borderBottomLeftRadius: theme.shape.borderRadius, borderBottomRightRadius: theme.shape.borderRadius, '& .ql-editor': { p: theme.spacing(1.5, 2), }, '& .ql-editor.ql-blank::before': { color: theme.palette.text.disabled, fontStyle: 'normal', left: theme.spacing(2), right: theme.spacing(2),} }
+          }}>
+            <RichTextEditor value={content} onChange={handleContentChange} placeholder="Опишите детали..."/>
+          </Box>
+          <FormHelperText>{contentError || "Минимум 20 видимых символов."}</FormHelperText>
         </FormControl>
 
         <Autocomplete
           multiple
-          id="tags-autocomplete"
+          freeSolo
+          id="tags-ask-question"
           options={tagSuggestions}
           value={selectedTags}
           inputValue={tagInput}
           onInputChange={(event, newInputValue, reason) => {
-            if (reason === 'input') setTagInput(newInputValue);
-            else if (reason === 'clear') setTagInput('');
+            if (reason === 'input') {
+              if (newInputValue.length <= MAX_TAG_LENGTH) { setTagInput(newInputValue); }
+            } else if (reason === 'clear') { setTagInput(''); }
           }}
-          onChange={(event, newValue) => {
-            const newProcessedTags = newValue
-              .map(option => typeof option === 'string' ? { name: option, id: 0 } : option)
-              .filter((tag, index, self) => index === self.findIndex(t => t.name.toLowerCase() === tag.name.toLowerCase()));
-            
-            if (newProcessedTags.length <= 5) {
-              setSelectedTags(newProcessedTags);
-              if (newProcessedTags.length > 0) setTagsError(null); else if (newProcessedTags.length === 0 && selectedTags.length > 0) {/* Не сбрасывать ошибку если удалили последний тег, но форма еще не сабмитилась */}
+          onChange={(event, newValue, reason) => {
+            const processedNewValue = newValue.map(optionOrString => {
+              const name = (typeof optionOrString === 'string' ? optionOrString : (optionOrString as TagOption).inputValue || (optionOrString as TagOption).name).trim();
+              if (!name || name.length > MAX_TAG_LENGTH) return null;
+              return { name: name, id: (optionOrString as TagOption).id === undefined || typeof optionOrString === 'string' || (optionOrString as TagOption).inputValue ? 0 : (optionOrString as TagOption).id };
+            }).filter(tag => tag !== null) as TagOption[];
+
+            const uniqueTags = processedNewValue.filter((tag, index, self) =>
+              index === self.findIndex(t => t.name.toLowerCase() === tag.name.toLowerCase())
+            );
+
+            if (uniqueTags.length <= MAX_TAGS_COUNT) {
+              setSelectedTags(uniqueTags);
+              // Сбрасываем ошибку если количество тегов в допустимом диапазоне (даже если 0, но не > MAX_TAGS_COUNT)
+              if (uniqueTags.length > 0) setTagsError(null); 
+              else if (uniqueTags.length === 0 && reason !== 'removeOption' && reason !== 'clear') {
+                  // Если последний тег был удален не кнопкой, а вводом/очисткой,
+                  // ошибка "хотя бы 1 тег" появится при валидации формы.
+                  // Пока не ставим ошибку, чтобы пользователь мог продолжить ввод.
+              }
             } else {
-              setSelectedTags(newProcessedTags.slice(0, 5));
-              setTagsError("Можно выбрать не более 5 тегов.");
+              setSelectedTags(uniqueTags.slice(0, MAX_TAGS_COUNT));
+              setTagsError(`Можно выбрать не более ${MAX_TAGS_COUNT} тегов.`);
+            }
+            
+            if (reason === 'selectOption' || reason === 'createOption') {
+                setTagInput('');
+                setTagSuggestions([]);
             }
           }}
-          getOptionLabel={(option) => typeof option === 'string' ? option : option.name}
+          getOptionLabel={(option) => {
+            if (typeof option === 'string') return option;
+            if (option.inputValue) return `Создать: "${option.inputValue}"`;
+            return option.name;
+          }}
           isOptionEqualToValue={(option, value) => option.name.toLowerCase() === value.name.toLowerCase()}
           loading={tagLoading}
           loadingText="Загрузка тегов..."
-          freeSolo
-          renderTags={(value, getTagProps) =>
-            value.map((option, index) => {
-              const { key, ...otherTagProps } = getTagProps({ index });
-              return <Chip key={key} label={option.name} {...otherTagProps} />;
-            })
-          }
+          filterOptions={(options, params) => {
+            const filtered = options.filter((option) =>
+              option.name.toLowerCase().includes(params.inputValue.toLowerCase())
+            );
+            const { inputValue } = params;
+            const trimmedInputValue = inputValue.trim();
+            
+            if (trimmedInputValue !== '' && 
+                trimmedInputValue.length <= MAX_TAG_LENGTH &&
+                selectedTags.length < MAX_TAGS_COUNT &&
+                !selectedTags.some(tag => tag.name.toLowerCase() === trimmedInputValue.toLowerCase()) &&
+                !options.some(option => option.name.toLowerCase() === trimmedInputValue.toLowerCase()) && // Проверяем в исходных options, а не filtered
+                !filtered.some(option => option.inputValue?.toLowerCase() === trimmedInputValue.toLowerCase()) // Проверяем, что такая "Создать" опция еще не добавлена
+                ) {
+              filtered.push({ inputValue: trimmedInputValue, name: `Создать: "${trimmedInputValue}"`, id: 0 });
+            }
+            return filtered;
+          }}
+          renderTags={(value, getTagProps) => value.map((option, index) => ( <Chip {...getTagProps({ index })} key={option.name + index} label={option.name} size="small" /> ))}
           renderInput={(params) => (
-            <TextField
-              {...params}
-              variant="outlined"
-              label="Теги"
-              error={!!tagsError}
-              helperText={tagsError || "От 1 до 5 тегов. Нажмите Enter или выберите из списка."}
-              placeholder={selectedTags.length < 5 ? "Начните вводить..." : "Максимум 5 тегов"}
-              InputProps={{
-                ...params.InputProps,
-                endAdornment: (
-                  <React.Fragment>
-                    {tagLoading ? <CircularProgress color="inherit" size={20} /> : null}
-                    {params.InputProps.endAdornment}
-                  </React.Fragment>
-                ),
-              }}
-              disabled={isSubmitting || (selectedTags.length >= 5 && params.inputProps?.value === '')}
-            />
+            <TextField {...params} variant="outlined" label="Теги" error={!!tagsError}
+              helperText={tagsError || `От 1 до ${MAX_TAGS_COUNT} тегов. Длина тега до ${MAX_TAG_LENGTH} симв.`}
+              placeholder={selectedTags.length < MAX_TAGS_COUNT ? "Название тега..." : "Достигнут лимит тегов"}
+              disabled={isSubmitting || selectedTags.length >= MAX_TAGS_COUNT && params.inputProps?.value === ''} />
           )}
-          sx={{ my: 2 }} // margin-top и margin-bottom для Autocomplete
-          disabled={isSubmitting || (selectedTags.length >= 5 && tagInput === "")}
+          sx={{ my: 2 }}
+          disabled={isSubmitting}
         />
 
         {submitError && <Alert severity="error" sx={{ mt: 2, mb: 2 }}>{submitError}</Alert>}
@@ -290,12 +347,12 @@ const AskQuestionPage = () => {
           color="primary"
           size="large"
           sx={{ marginTop: 2, display: 'block', minWidth: '200px', mx: 'auto' }}
-          disabled={isSubmitting || !!titleError || !!contentError || !!tagsError || selectedTags.length === 0 /* Доп. проверка, если tagsError не установлен сразу */}
+          disabled={isButtonDisabled} // Используем вычисленное значение
         >
           {isSubmitting ? <CircularProgress size={24} color="inherit" /> : 'Опубликовать вопрос'}
         </Button>
       </form>
-    </Box>
+    </Paper>
   );
 };
 

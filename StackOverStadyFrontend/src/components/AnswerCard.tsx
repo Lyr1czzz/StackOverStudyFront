@@ -1,41 +1,42 @@
 // src/components/AnswerCard.tsx
 import React, { useState, useEffect, useRef } from 'react';
-import { Paper, Box, Typography, Avatar, Link as MuiLink, Divider, IconButton, Tooltip, Button, Snackbar } from '@mui/material';
+import { Paper, Box, Typography, Avatar, Link as MuiLink, Divider, IconButton, Tooltip, Button, Snackbar, useTheme } from '@mui/material';
 import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import DOMPurify from 'dompurify';
 import hljs from 'highlight.js/lib/core';
-// Языки для hljs должны быть зарегистрированы глобально или здесь, если они не используются в QuestionDetailPage
 
 import ThumbUpAltOutlinedIcon from '@mui/icons-material/ThumbUpAltOutlined';
 import ThumbDownAltOutlinedIcon from '@mui/icons-material/ThumbDownAltOutlined';
-import CheckCircleIcon from '@mui/icons-material/CheckCircle'; // Для принятого ответа и кнопки
+import CheckCircleIcon from '@mui/icons-material/CheckCircle';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 
-import CommentList from './CommentList'; // Предполагаем, что этот компонент существует
+import CommentList from './CommentList';
 import { useAuth } from '../AuthContext';
 import axios from 'axios';
-import { AnswerDto, UserInfoDto } from '../pages/QuestionDetailPage'; // Импортируем интерфейсы из QuestionDetailPage
+import { AnswerDto } from '../pages/QuestionDetailPage'; // Убедись, что UserInfoDto тоже экспортируется, если он тут нужен отдельно
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
 
 interface AnswerCardProps {
   answer: AnswerDto;
-  onVote: (answerId: number, newRating: number) => void; // Обработчик обновления рейтинга в родительском компоненте
-  questionAuthorId: number; // ID автора вопроса для кнопки "Принять ответ"
-  onAcceptAnswer: (answerId: number) => void; // Колбэк для обновления UI после принятия
+  onVote: (answerId: number, newRating: number) => void;
+  questionAuthorId: number;
+  onAcceptAnswer: (answerId: number) => void;
 }
 
 const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorId, onAcceptAnswer }) => {
   const { user, loading: authLoading } = useAuth();
   const navigate = useNavigate();
   const location = useLocation();
+  const theme = useTheme(); // Для доступа к теме
+
   const [voteProcessing, setVoteProcessing] = useState(false);
   const [acceptProcessing, setAcceptProcessing] = useState(false);
 
   const answerContentRef = useRef<HTMLDivElement>(null);
-  const [snackbarOpen, setSnackbarOpen] = useState(false); // Локальный Snackbar для этой карточки
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
   const [snackbarMessage, setSnackbarMessage] = useState("");
 
 
@@ -50,52 +51,32 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
   useEffect(() => {
     if (!answerContentRef.current) return;
     const currentContentRef = answerContentRef.current;
-
-    // 1. Подсветка синтаксиса
-    const codeBlocks = currentContentRef.querySelectorAll('pre code, pre.ql-syntax code');
-    codeBlocks.forEach((block) => {
-        const B = block as HTMLElement;
-        if (!B.dataset.highlighted) { // Используем data-атрибут для предотвращения повторной подсветки
-            hljs.highlightElement(B);
-            B.dataset.highlighted = 'true';
-            if (B.parentElement && B.parentElement.tagName === 'PRE') {
-                B.parentElement.classList.add('hljs-processed-parent');
-            }
-        }
+    currentContentRef.querySelectorAll<HTMLElement>('pre code:not([data-highlighted]), pre.ql-syntax code:not([data-highlighted])').forEach((block) => {
+        hljs.highlightElement(block);
+        block.dataset.highlighted = 'true';
     });
-
-    // 2. Добавление кнопок "Копировать"
-    const preElements = currentContentRef.querySelectorAll('pre:not(.code-block-wrapper-dynamic pre)');
-    preElements.forEach(pre => {
-      if (pre.querySelector('button.copy-code-button')) {
-        return;
-      }
-
+    currentContentRef.querySelectorAll<HTMLPreElement>('pre:not(.code-block-wrapper pre)').forEach(pre => {
+      if (pre.querySelector('button.copy-code-button')) return;
       const wrapper = document.createElement('div');
       wrapper.style.position = 'relative';
-      wrapper.classList.add('code-block-wrapper-dynamic');
-
+      wrapper.classList.add('code-block-wrapper');
       const copyButton = document.createElement('button');
       copyButton.classList.add('copy-code-button');
       const svgIcon = `<svg fill="currentColor" width="16px" height="16px" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path d="M16 1H4c-1.1 0-2 .9-2 2v14h2V3h12V1zm3 4H8c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h11c1.1 0 2-.9 2-2V7c0-1.1-.9-2-2-2zm0 16H8V7h11v14z"/></svg>`;
       copyButton.innerHTML = svgIcon;
-      copyButton.setAttribute('aria-label', 'Копировать код');
-      copyButton.setAttribute('title', 'Копировать код');
-
       Object.assign(copyButton.style, {
-        position: 'absolute', top: '6px', right: '6px', zIndex: '10',
-        backgroundColor: 'rgba(220, 220, 220, 0.6)', border: '1px solid rgba(200,200,200,0.7)',
-        borderRadius: '4px', padding: '3px 5px', cursor: 'pointer', lineHeight: '0',
-        display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#444'
+        position: 'absolute', top: '8px', right: '8px', zIndex: '1',
+        backgroundColor: theme.palette.action.hover, border: `1px solid ${theme.palette.divider}`,
+        borderRadius: `${theme.shape.borderRadius / 2}px`, padding: '4px 6px', cursor: 'pointer', lineHeight: '0',
+        display: 'flex', alignItems: 'center', justifyContent: 'center', color: theme.palette.text.secondary
       });
-      copyButton.onmouseover = () => { copyButton.style.backgroundColor = 'rgba(200, 200, 200, 0.9)'; copyButton.style.color = '#111'; };
-      copyButton.onmouseout = () => { copyButton.style.backgroundColor = 'rgba(220, 220, 220, 0.6)'; copyButton.style.color = '#444';};
-
+      copyButton.onmouseover = () => { copyButton.style.backgroundColor = theme.palette.action.selected; copyButton.style.color = theme.palette.text.primary; };
+      copyButton.onmouseout = () => { copyButton.style.backgroundColor = theme.palette.action.hover; copyButton.style.color = theme.palette.text.secondary; };
       copyButton.onclick = async () => {
         const codeToCopy = pre.textContent || '';
         try {
           await navigator.clipboard.writeText(codeToCopy);
-          setSnackbarMessage("Код скопирован!"); // Используем локальный Snackbar
+          setSnackbarMessage("Код скопирован!");
           setSnackbarOpen(true);
         } catch (err) {
           console.error('Failed to copy: ', err);
@@ -103,38 +84,35 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
           setSnackbarOpen(true);
         }
       };
-
       pre.parentNode?.insertBefore(wrapper, pre);
       wrapper.appendChild(pre);
       wrapper.appendChild(copyButton);
     });
-  }, [answer.content]); // Перезапускаем при изменении контента ответа
+  }, [answer.content, theme]);
 
   const handleVote = async (voteType: 'Up' | 'Down') => {
     if (authLoading || !user) {
-      setSnackbarMessage("Нужна авторизация для голосования за ответ");
+      setSnackbarMessage("Нужна авторизация для голосования");
       setSnackbarOpen(true);
-      // navigate('/login', { state: { from: location } }); // опционально
       return;
     }
     if (voteProcessing) return;
-
     setVoteProcessing(true);
     try {
       const response = await axios.post<{ action: string, newRating: number }>(
-        `${API_URL}/answers/${answer.id}/vote`, // Эндпоинт из вашего VotesController
+        `${API_URL}/answers/${answer.id}/vote`,
         { voteType },
         { withCredentials: true }
       );
-      onVote(answer.id, response.data.newRating); // Вызываем колбэк для обновления UI в QuestionDetailPage
-      setSnackbarMessage(response.data.action === "removed vote" ? "Голос за ответ отменен." : "Голос за ответ учтён!");
+      onVote(answer.id, response.data.newRating);
+      setSnackbarMessage(response.data.action === "removed vote" ? "Голос отменен." : "Голос учтён!");
       setSnackbarOpen(true);
     } catch (error) {
       console.error("Ошибка голосования за ответ:", error);
       if (axios.isAxiosError(error)) {
-        setSnackbarMessage(error.response?.data?.message || "Ошибка голосования за ответ");
+        setSnackbarMessage(error.response?.data?.message || "Ошибка голосования");
       } else {
-        setSnackbarMessage("Неизвестная ошибка голосования за ответ");
+        setSnackbarMessage("Неизвестная ошибка голосования");
       }
       setSnackbarOpen(true);
     } finally {
@@ -143,33 +121,35 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
   };
 
   const handleAccept = async () => {
-    if (authLoading || !user || acceptProcessing || answer.isAccepted || user.id !== questionAuthorId) {
-      if(!user && !authLoading) {
-         setSnackbarMessage("Необходимо авторизоваться, чтобы принять ответ.");
-         setSnackbarOpen(true);
-      } else if (user && user.id !== questionAuthorId && !answer.isAccepted) {
-         setSnackbarMessage("Только автор вопроса может принять ответ.");
-         setSnackbarOpen(true);
-      } else if (answer.isAccepted) {
-        // Можно добавить логику отмены принятия, если бэкенд это поддерживает
-        // setSnackbarMessage("Этот ответ уже принят.");
-        // setSnackbarOpen(true);
-      }
-      return;
+    if (authLoading || !user || acceptProcessing || user.id !== questionAuthorId) {
+        if (!user && !authLoading) {
+            setSnackbarMessage("Нужна авторизация.");
+        } else if (user && user.id !== questionAuthorId) {
+            setSnackbarMessage("Только автор вопроса может принять ответ.");
+        }
+        setSnackbarOpen(true);
+        return;
     }
+    // Логика отмены принятия ответа (если isAccepted уже true)
+    // if (answer.isAccepted) {
+    //   // Здесь можно вызвать API для отмены принятия
+    //   // и затем onAcceptAnswer(null) или специальный флаг
+    //   setSnackbarMessage("Отмена принятия ответа еще не реализована.");
+    //   setSnackbarOpen(true);
+    //   return;
+    // }
+
     setAcceptProcessing(true);
     try {
-      // Запрос на новый эндпоинт для принятия ответа
       await axios.post(`${API_URL}/answers/${answer.id}/accept`, {}, { withCredentials: true });
-      onAcceptAnswer(answer.id); // Вызываем колбэк для обновления UI в QuestionDetailPage
-      // Snackbar об успехе принятия будет показан из QuestionDetailPage
+      onAcceptAnswer(answer.id);
     } catch (error) {
       console.error("Ошибка принятия ответа:", error);
       if (axios.isAxiosError(error)) {
         const errData = error.response?.data as { message?: string };
         setSnackbarMessage(errData?.message || "Не удалось принять ответ.");
       } else {
-        setSnackbarMessage("Произошла неизвестная ошибка при принятии ответа.");
+        setSnackbarMessage("Произошла неизвестная ошибка при принятии.");
       }
       setSnackbarOpen(true);
     } finally {
@@ -177,12 +157,10 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
     }
   };
 
-
   const formattedDate = (dateString: string): string => {
     try {
       return formatDistanceToNow(parseISO(dateString), { addSuffix: true, locale: ru });
     } catch (e) {
-      console.warn("Invalid date for answer card:", dateString);
       return "недавно";
     }
   };
@@ -190,98 +168,93 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
   const isCurrentUserAuthorOfQuestion = user?.id === questionAuthorId;
 
   return (
-    <Paper
-      elevation={0}
+    <Paper // elevation={0} и borderRadius будут из темы
       sx={{
         p: {xs: 1.5, sm: 2},
-        border: '1px solid',
-        borderColor: answer.isAccepted ? 'success.main' : 'divider',
-        borderRadius: 2,
+        // border: '1px solid', // Будет из темы
+        borderColor: answer.isAccepted ? 'success.main' : 'divider', // Яркая рамка для принятого
         display: 'flex',
         flexDirection: {xs: 'column', sm: 'row'},
         position: 'relative',
-        boxShadow: answer.isAccepted ? (theme) => `0 0 12px ${theme.palette.success.light}` : 'none',
-        transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
-        backgroundColor: answer.isAccepted ? (theme) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.1)' : 'rgba(232, 245, 233, 0.5)' : 'transparent',
+        boxShadow: answer.isAccepted ? (themeParam) => `0 0 10px ${themeParam.palette.success.light}` : 'none',
+        transition: 'border-color 0.3s ease, box-shadow 0.3s ease, background-color 0.3s ease',
+        backgroundColor: answer.isAccepted 
+            ? (theme.palette.mode === 'dark' ? 'rgba(102, 187, 106, 0.15)' : 'rgba(232, 245, 233, 0.7)') 
+            : 'transparent', // Фон для принятого ответа
       }}
     >
       {answer.isAccepted && (
         <Tooltip title="Принятый ответ">
           <CheckCircleIcon
-            color="success"
-            sx={{ position: 'absolute', top: {xs: 6, sm: 10}, right: {xs:6, sm:10}, fontSize: {xs: '1.5rem', sm:'1.75rem'} }}
+            color="success" // Будет использовать основной success цвет из темы
+            sx={{ position: 'absolute', top: {xs: 8, sm: 12}, right: {xs:8, sm:12}, fontSize: {xs: '1.6rem', sm:'1.85rem'} }}
           />
         </Tooltip>
       )}
-      <Box sx={{ mr: {sm:2}, mb:{xs:1, sm:0}, textAlign: 'center', minWidth: {sm:'50px'}, display:'flex', flexDirection:{xs:'row', sm:'column'}, alignItems:'center', justifyContent:{xs:'flex-start', sm:'center'} }}>
+      <Box sx={{ mr: {sm:2}, mb:{xs:1, sm:0}, textAlign: 'center', minWidth: {sm:'50px'}, display:'flex', flexDirection:{xs:'row', sm:'column'}, alignItems:'center', justifyContent:{xs:'flex-start', sm:'center'}, gap: {xs: 0.5, sm: 0.25} }}>
         <Tooltip title="Полезный ответ">
-          <IconButton onClick={() => handleVote('Up')} size="small" disabled={voteProcessing || authLoading || !user}>
+          <IconButton onClick={() => handleVote('Up')} size="medium" disabled={voteProcessing || authLoading || !user} sx={{ p: 0.75 }}>
             <ThumbUpAltOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
-        <Typography variant="body1" component="div" sx={{ my: {sm:0.5}, mx: {xs:1, sm:0}, fontWeight: 'medium', color: answer.isAccepted ? 'success.dark' : 'text.primary' }}>
+        <Typography variant="body1" component="div" sx={{ fontWeight: 'medium', color: answer.isAccepted ? 'success.dark' : 'text.primary' }}>
           {answer.rating ?? 0}
         </Typography>
         <Tooltip title="Бесполезный ответ">
-          <IconButton onClick={() => handleVote('Down')} size="small" disabled={voteProcessing || authLoading || !user}>
+          <IconButton onClick={() => handleVote('Down')} size="medium" disabled={voteProcessing || authLoading || !user} sx={{ p: 0.75 }}>
             <ThumbDownAltOutlinedIcon fontSize="small" />
           </IconButton>
         </Tooltip>
       </Box>
 
-      <Box sx={{ flexGrow: 1, width: 'calc(100% - 50px - 16px)', overflow: 'hidden' }}>
+      <Box sx={{ flexGrow: 1, width: {xs: '100%', sm: 'calc(100% - 70px)'}, overflow: 'hidden' }}> {/* Адаптивная ширина */}
         <Box
           ref={answerContentRef}
           className="answer-content"
           sx={{
             mb: 2,
             wordBreak: 'break-word',
-            fontSize: '0.95rem',
-            // Стили для контента ответа, аналогичные стилям для вопроса
-            '& p': { marginBlockStart: '0.5em', marginBlockEnd: '0.5em', lineHeight: 1.6 },
-            '& h1': { fontSize: '1.6em', mt: '1em', mb: '0.5em', lineHeight: 1.3, fontWeight: 600 },
-            '& h2': { fontSize: '1.4em', mt: '1em', mb: '0.5em', lineHeight: 1.3, fontWeight: 600 },
-            '& h3': { fontSize: '1.2em', mt: '1em', mb: '0.5em', lineHeight: 1.3, fontWeight: 600 },
-            '& h4': { fontSize: '1.1em', mt: '1em', mb: '0.5em', lineHeight: 1.3, fontWeight: 600 },
-            '& ul, & ol': { pl: '2em', my: '0.8em' },
-            '& li': { mb: '0.3em', lineHeight: 1.6 },
+            fontSize: '0.95rem', lineHeight: 1.7, color: 'text.primary',
+            '& p': { marginBlockStart: '0.6em', marginBlockEnd: '0.6em' },
+            '& h1, & h2, & h3, & h4, & h5, & h6': { mt: '1.5em', mb: '0.75em', lineHeight: 1.3, fontWeight: 600, color: 'text.primary' },
+            '& ul, & ol': { pl: '2.5em', my: '1em' },
+            '& li': { mb: '0.5em' },
             '& a': { color: 'primary.main', textDecoration: 'underline', '&:hover': {textDecoration: 'none'} },
-            '& img': { maxWidth: '100%', height: 'auto', borderRadius: '4px', my: 1 },
+            '& img': { maxWidth: '100%', height: 'auto', borderRadius: `${theme.shape.borderRadius / 2}px`, my: 1.5 },
             '& blockquote': {
-                borderLeft: (theme) => `4px solid ${theme.palette.divider}`,
-                pl: '1em', ml: 0, my: '1em', color: 'text.secondary', fontStyle: 'italic',
+                borderLeft: `4px solid ${theme.palette.divider}`, pl: '1.5em', ml: 0, my: '1.5em', 
+                color: 'text.secondary', fontStyle: 'italic', backgroundColor: theme.palette.action.hover,
+                py: 0.5, borderRadius: `${theme.shape.borderRadius / 2}px`,
                 '& p': { marginBlockStart: '0.25em', marginBlockEnd: '0.25em' }
             },
             '& pre, & .ql-syntax': {
-              backgroundColor: (theme) => theme.palette.mode === 'dark' ? '#2D2D2D' : '#F8F9FA',
-              color: (theme) => theme.palette.mode === 'dark' ? '#F8F8F2' : '#212B36',
-              border: (theme) => `1px solid ${theme.palette.divider}`,
-              padding: '10px 14px', my: '12px', borderRadius: '6px', overflowX: 'auto',
-              fontFamily: '"Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace',
-              fontSize: '13px', lineHeight: 1.5, whiteSpace: 'pre', tabSize: 4,
+              backgroundColor: theme.palette.mode === 'dark' ? theme.palette.grey[900] : theme.palette.grey[100],
+              color: theme.palette.text.primary, border: `1px solid ${theme.palette.divider}`,
+              padding: theme.spacing(1.5, 2), my: theme.spacing(2), borderRadius: `${theme.shape.borderRadius}px`, 
+              overflowX: 'auto', fontFamily: '"Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace',
+              fontSize: '0.9rem', lineHeight: 1.6,
             },
             '& pre code, & .ql-syntax code': {
-              fontFamily: 'inherit', fontSize: 'inherit', backgroundColor: 'transparent',
-              color: 'inherit', padding: 0, margin: 0, borderRadius: 0,
-              whiteSpace: 'inherit', display: 'block',
+              fontFamily: 'inherit', fontSize: 'inherit', backgroundColor: 'transparent', color: 'inherit', 
+              padding: 0, margin: 0, borderRadius: 0, whiteSpace: 'inherit', display: 'block',
             },
             '& code:not(pre code):not(.ql-syntax code)': {
               fontFamily: '"Menlo", "Consolas", "Monaco", "Liberation Mono", "Lucida Console", monospace',
-              backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(145, 158, 171, 0.16)' : 'rgba(222, 226, 230, 0.5)',
-              padding: '2px 5px', margin: '0 2px', fontSize: '12px', borderRadius: '5px',
-              wordBreak: 'break-all', color: (theme) => theme.palette.mode === 'dark' ? '#E0E0E0' : '#343A40'
+              backgroundColor: theme.palette.action.selected, padding: '3px 6px', margin: '0 2px', 
+              fontSize: '0.875rem', borderRadius: `${theme.shape.borderRadius / 1.5}px`,
+              wordBreak: 'break-all', color: theme.palette.text.primary
             },
           }}
           dangerouslySetInnerHTML={{ __html: sanitizedHtml(answer.content) }}
         />
 
-        <Divider sx={{ my: 1 }} />
+        <Divider sx={{ my: 1.5 }} />
 
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1, flexWrap: 'wrap', gap: 1 }}>
-          {isCurrentUserAuthorOfQuestion && !answer.isAccepted && (
+        <Box sx={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', mt: 1.5, flexWrap: 'wrap', gap: 1 }}>
+          {(isCurrentUserAuthorOfQuestion && !answer.isAccepted) && (
             <Button
               size="small"
-              variant="outlined"
+              variant="outlined" // Будет с рамкой из темы
               color="success"
               startIcon={<CheckCircleIcon />}
               onClick={handleAccept}
@@ -290,23 +263,21 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
               Принять ответ
             </Button>
           )}
-          {isCurrentUserAuthorOfQuestion && answer.isAccepted && (
+          {(isCurrentUserAuthorOfQuestion && answer.isAccepted) && (
             <Button
                 size="small"
-                variant="contained"
+                variant="contained" // Залитая кнопка
                 color="success"
                 startIcon={<CheckCircleIcon />}
                 disabled
-                sx={{cursor: 'default', '&.Mui-disabled': { backgroundColor: 'success.main', color: 'success.contrastText', opacity: 0.7 } }}
+                sx={{cursor: 'default', '&.Mui-disabled': { backgroundColor: 'success.main', color: 'success.contrastText', opacity: 0.8 } }}
             >
                 Ответ принят
             </Button>
           )}
-          {/* Заполнитель, чтобы авторская информация была справа, если кнопка принятия не рендерится для НЕ автора вопроса */}
-          {!isCurrentUserAuthorOfQuestion && <Box sx={{ flexGrow: 1 }} />}
+          <Box sx={{ flexGrow: (isCurrentUserAuthorOfQuestion) ? 0 : 1 }} /> {/* Заполнитель */}
 
-
-          <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', ml: isCurrentUserAuthorOfQuestion ? 0 : 'auto' /* Прижать вправо, если не автор вопроса */ }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', color: 'text.secondary', ml: 'auto' }}>
             <Typography variant="caption" sx={{ mr: 0.5 }}>
               Ответил(а) {formattedDate(answer.createdAt)}
             </Typography>
@@ -315,12 +286,12 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
                 <Avatar
                   src={answer.author.pictureUrl || undefined}
                   alt={answer.author.name}
-                  sx={{ width: 24, height: 24, mr: 0.5 }}
+                  sx={{ width: 24, height: 24, mr: 0.75 }}
                 >
                   {!answer.author.pictureUrl && <AccountCircleIcon fontSize="small" />}
                 </Avatar>
               </Tooltip>
-              <Typography variant="caption" sx={{ '&:hover': { textDecoration: 'underline' } }}>
+              <Typography variant="caption" sx={{ '&:hover': { textDecoration: 'underline', color: 'primary.main' } }}>
                 {answer.author.name}
               </Typography>
             </MuiLink>
@@ -328,7 +299,6 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
         </Box>
         <CommentList targetId={answer.id} targetType="answer" />
       </Box>
-      {/* Локальный Snackbar для сообщений специфичных для этой карточки (например, ошибки копирования, голосования, принятия) */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={3000}

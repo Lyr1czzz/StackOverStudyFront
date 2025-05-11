@@ -1,7 +1,7 @@
 // src/components/QuestionCard.tsx
 import React from 'react';
 import { Link as RouterLink } from 'react-router-dom';
-import { Paper, Box, Typography, Chip, Avatar, Link, Tooltip } from '@mui/material';
+import { Paper, Box, Typography, Chip, Avatar, Link, Tooltip, useTheme } from '@mui/material';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import AccountCircleIcon from '@mui/icons-material/AccountCircle';
@@ -25,9 +25,11 @@ export interface QuestionSummaryDto {
 
 interface QuestionCardProps {
   question: QuestionSummaryDto;
+  view?: 'list' | 'grid'; // Новый проп для режима отображения
 }
 
-const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
+const QuestionCard: React.FC<QuestionCardProps> = ({ question, view = 'list' }) => {
+  const theme = useTheme();
   const timeAgo = formatDistanceToNow(parseISO(question.createdAt), {
     addSuffix: true,
     locale: ru,
@@ -45,12 +47,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
     answerBlockStyles = {
       border: '1px solid',
       borderColor: 'success.main',
-      backgroundColor: (theme: { palette: { mode: string; success: { main: any; light: any; }; }; }) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.25)' : 'rgba(232, 245, 233, 0.8)',
+      backgroundColor: theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.25)' : 'rgba(232, 245, 233, 0.8)',
       color: 'success.dark',
     };
     answerBlockContent = (
       <>
-        <CheckCircleOutlineIcon sx={{ fontSize: '1.7rem', mb: 0.25 }} />
+        <CheckCircleOutlineIcon sx={{ fontSize: view === 'grid' ? '1.4rem' : '1.7rem', mb: 0.1 }} />
         <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block', fontWeight: 500 }}>
           решён
         </Typography>
@@ -64,7 +66,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
     };
     answerBlockContent = (
       <>
-        <Typography variant="h6" fontWeight="medium">
+        <Typography variant={view === 'grid' ? "h6" : "h6"} fontWeight="medium"> {/* Было h6, оставим */}
           {question.answerCount}
         </Typography>
         <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block' }}>
@@ -80,7 +82,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
     };
     answerBlockContent = (
       <>
-        <Typography variant="h6" fontWeight="medium">
+        <Typography variant={view === 'grid' ? "h6" : "h6"} fontWeight="medium">
           0
         </Typography>
         <Typography variant="caption" sx={{ lineHeight: 1.1, display: 'block' }}>
@@ -90,49 +92,46 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
     );
   }
 
+  // Для grid view делаем карточку выше и контент центрируем
+  const isGridView = view === 'grid';
+
   return (
     <Paper
-      elevation={0}
       sx={{
         display: 'flex',
-        border: '1px solid',
-        // ИСПРАВЛЕНИЕ ЗДЕСЬ: Общая рамка карточки теперь всегда 'divider'
-        // или можно сделать ее чуть темнее при наведении, но не зеленой по умолчанию для решенных
-        borderColor: 'divider',
+        // border: '1px solid', // Уже из темы
+        // borderColor: 'divider', // Уже из темы
         overflow: 'hidden',
-        borderRadius: 2,
-        flexDirection: { xs: 'column', md: 'row' },
-        transition: 'border-color 0.3s ease, box-shadow 0.3s ease',
+        // borderRadius: 2, // Уже из темы
+        flexDirection: isGridView ? 'column' : { xs: 'column', md: 'row' }, // В сетке всегда колонка
+        height: isGridView ? '100%' : undefined, // Для Grid item, чтобы занимали всю высоту ячейки
+        transition: 'border-color 0.2s ease-in-out, box-shadow 0.2s ease-in-out',
         '&:hover': {
-            borderColor: 'primary.main', // При наведении рамка становится основной
-            boxShadow: (theme) => `0 4px 12px ${theme.palette.action.hover}`,
+            borderColor: 'primary.light',
+            boxShadow: (theme) => `0 2px 8px 0px ${theme.palette.action.focus}`,
         },
-        // Легкий фон для всей карточки если решен, может остаться, он не так бросается в глаза
-        // Если хочешь убрать и его, то сделай:
-        // backgroundColor: 'transparent',
-        backgroundColor: isSolved ? (theme) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.05)' : 'rgba(232, 245, 233, 0.2)' : 'transparent',
+        backgroundColor: isSolved ? (theme) => theme.palette.mode === 'dark' ? 'rgba(76, 175, 80, 0.03)' : 'rgba(232, 245, 233, 0.15)' : 'transparent',
       }}
     >
-      {/* Блок с рейтингом и ответами */}
       <Box
         sx={{
-          p: { xs: 1.5, md: 2 },
+          p: isGridView ? 1.5 : { xs: 1.5, md: 2 },
           bgcolor: 'action.hover',
           textAlign: 'center',
-          width: { xs: '100%', md: '110px' },
-          minWidth: { xs: '100%', md: '110px' },
+          width: isGridView ? '100%' : { xs: '100%', md: '100px' },
+          minWidth: isGridView ? 'auto' : { xs: '100%', md: '100px' },
           display: 'flex',
-          flexDirection: {xs: 'row', md: 'column'},
-          justifyContent: {xs: 'space-around', md:'center'},
+          flexDirection: isGridView ? 'row' : {xs: 'row', md: 'column'},
+          justifyContent: 'space-around',
           alignItems: 'center',
-          gap: {xs:1, md:1},
-          borderRight: { md: '1px solid' },
-          borderBottom: { xs: '1px solid', md: 'none' },
+          gap: 1,
+          borderRight: isGridView ? 'none' : { md: `1px solid`},
+          borderBottom: isGridView ? `1px solid` : { xs: `1px solid`, md: 'none' },
           borderColor: 'divider',
         }}
       >
         <Box sx={{textAlign: 'center'}}>
-            <Typography variant="body1" fontWeight="medium" color="text.secondary">
+            <Typography variant={isGridView ? "body2" : "body1"} fontWeight="medium" color="text.secondary">
             {question.rating ?? 0}
             </Typography>
             <Typography variant="caption" color="text.secondary" sx={{ lineHeight: 1.2, display: 'block' }}>
@@ -144,7 +143,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
             <Box
                 sx={{
                     textAlign: 'center',
-                    borderRadius: '8px',
+                    borderRadius: 1.5,
                     px: 1,
                     py: 0.5,
                     minWidth: '60px',
@@ -152,7 +151,7 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                     flexDirection: 'column',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    transition: 'all 0.3s ease',
+                    transition: 'all 0.2s ease-in-out',
                     ...answerBlockStyles
                 }}
             >
@@ -161,21 +160,29 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
         </Tooltip>
       </Box>
 
-      {/* Основной контент карточки */}
-      <Box sx={{ flexGrow: 1, p: 2, display: 'flex', flexDirection: 'column', justifyContent: 'space-between', overflow: 'hidden' }}>
+      <Box sx={{ 
+          flexGrow: 1, 
+          p: isGridView ? 1.5 : 2, 
+          display: 'flex', 
+          flexDirection: 'column', 
+          justifyContent: 'space-between', 
+          overflow: 'hidden',
+          minHeight: isGridView ? 150 : 'auto' // Минимальная высота для контента в сетке
+        }}>
         <div>
             <Typography
-                variant="h6"
+                variant={isGridView ? "subtitle1" : "h6"} // Меньше заголовок для сетки
                 component="h2"
                 sx={{
                     mb: 1,
                     overflow: 'hidden',
                     textOverflow: 'ellipsis',
                     display: '-webkit-box',
-                    WebkitLineClamp: 2,
+                    WebkitLineClamp: isGridView ? 3 : 2, // Больше строк для сетки, если нужно
                     WebkitBoxOrient: 'vertical',
-                    lineHeight: 1.3,
-                    minHeight: '2.6em',
+                    lineHeight: 1.35,
+                    minHeight: isGridView ? '4em' :'2.7em', 
+                    maxHeight: isGridView ? '4em' :'2.7em',
                 }}
             >
             <Link
@@ -183,28 +190,30 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                 to={`/questions/${question.id}`}
                 underline="hover"
                 color="text.primary"
-                sx={{ fontWeight: 500 }}
+                sx={{ fontWeight: 500, '&:hover': {color: 'primary.main'} }}
             >
                 {question.title}
             </Link>
             </Typography>
 
-            <Typography
-            variant="body2"
-            color="text.secondary"
-            sx={{
-                mb: 1.5,
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                display: '-webkit-box',
-                WebkitLineClamp: 2,
-                WebkitBoxOrient: 'vertical',
-                maxHeight: '2.8em',
-                lineHeight: '1.4em',
-            }}
-            >
-            {question.content.replace(/<[^>]*>?/gm, '').substring(0, 150) + (question.content.length > 150 ? '...' : '')}
-            </Typography>
+            {!isGridView && ( // Контент показываем только в режиме списка
+              <Typography
+                variant="body2"
+                color="text.secondary"
+                sx={{
+                    mb: 1.5,
+                    overflow: 'hidden',
+                    textOverflow: 'ellipsis',
+                    display: '-webkit-box',
+                    WebkitLineClamp: 2,
+                    WebkitBoxOrient: 'vertical',
+                    maxHeight: '3em',
+                    lineHeight: '1.5em',
+                }}
+              >
+                {question.content.replace(/<[^>]*>?/gm, '').substring(0, 120) + (question.content.length > 120 ? '...' : '')}
+              </Typography>
+            )}
 
             <Box
             sx={{
@@ -212,9 +221,11 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                 flexWrap: 'wrap',
                 gap: 0.5,
                 mb: 1.5,
+                maxHeight: isGridView ? '42px' : 'auto', // Ограничиваем высоту тегов в сетке
+                overflow: isGridView ? 'hidden' : 'visible',
             }}
             >
-            {question.tags.map((tag) => (
+            {question.tags.slice(0, isGridView ? 3 : undefined).map((tag) => ( // Показываем меньше тегов в сетке
                 <Chip
                     key={tag.id}
                     label={tag.name}
@@ -222,9 +233,12 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                     component={RouterLink}
                     to={`/?tags=${encodeURIComponent(tag.name)}`}
                     clickable
-                    sx={{ textTransform: 'lowercase', '&:hover': { backgroundColor: 'action.selected'}}}
+                    sx={{ textTransform: 'lowercase' }} // backgroundColor из темы
                 />
             ))}
+            {isGridView && question.tags.length > 3 && (
+                <Typography variant="caption" sx={{ml:0.5, color: 'text.secondary'}}>...</Typography>
+            )}
             </Box>
         </div>
         <Box
@@ -240,17 +254,19 @@ const QuestionCard: React.FC<QuestionCardProps> = ({ question }) => {
                 <Avatar
                 src={question.author.pictureUrl || undefined}
                 alt={question.author.name}
-                sx={{ width: 24, height: 24, mr: 0.75 }}
+                sx={{ width: 20, height: 20, mr: 0.75, fontSize: '0.8rem' }}
                 >
-                 {!question.author.pictureUrl && <AccountCircleIcon fontSize="small" />}
+                 {!question.author.pictureUrl && <AccountCircleIcon fontSize="inherit" />}
                 </Avatar>
               </Tooltip>
-              <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { textDecoration: 'underline', color: 'primary.main' }, fontWeight: 500, mr: 0.5 }}>
-                {question.author.name}
-              </Typography>
+              {!isGridView && ( // Имя автора только в списке
+                <Typography variant="caption" color="text.secondary" sx={{ '&:hover': { textDecoration: 'underline', color: 'primary.main' }, fontWeight: 500, mr: 0.5 }}>
+                    {question.author.name}
+                </Typography>
+              )}
           </Link>
           <Typography variant="caption" color="text.secondary" >
-            {'•'} {timeAgo}
+            {!isGridView && `• `}{timeAgo}
           </Typography>
         </Box>
       </Box>

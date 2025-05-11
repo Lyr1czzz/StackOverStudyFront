@@ -1,5 +1,5 @@
-import React, { useState, useContext, useEffect } from 'react'; // Добавил useEffect
-import { useNavigate, Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom'; // Добавил useLocation, useSearchParams
+import React, { useState, useContext, useEffect } from 'react';
+import { useNavigate, Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AppBar,
   Toolbar,
@@ -11,54 +11,65 @@ import {
   Menu,
   MenuItem,
   useMediaQuery,
-  Theme,
   Skeleton,
   Link,
   TextField,
-  InputAdornment // Для иконки поиска
+  InputAdornment,
+  Container,
+  ListItemIcon,
+  ListItemText,
+  Tooltip,
+  useTheme, // Импортируем useTheme
+  Theme as MuiTheme, // Для типизации theme из useTheme
 } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';
-import SearchIcon from '@mui/icons-material/Search'; // Иконка поиска
+import SearchIcon from '@mui/icons-material/Search';
+import MenuIcon from '@mui/icons-material/Menu';
+import AccountCircleIcon from '@mui/icons-material/AccountCircle';
+import ExitToAppIcon from '@mui/icons-material/ExitToApp';
+import PersonOutlineIcon from '@mui/icons-material/PersonOutline';
 import { useAuth } from '../AuthContext';
-import { ThemeContext } from '../ThemeContext';
+import { useAppTheme } from '../ThemeContext'; // Используем наш хук для темы
 
-const Header = () => {
-  const { mode, toggleTheme } = useContext(ThemeContext) || { mode: 'light', toggleTheme: () => {} };
+interface HeaderProps {
+  onDrawerToggle: () => void;
+}
+
+const Header: React.FC<HeaderProps> = ({ onDrawerToggle }) => {
+  const { mode, toggleTheme } = useAppTheme(); // Используем наш хук
   const { user, loading, login, logout } = useAuth();
-  const [anchorEl, setAnchorEl] = useState<null | HTMLElement>(null);
-  const isMobile = useMediaQuery((theme: Theme) => theme.breakpoints.down('sm'));
-  const navigate = useNavigate();
-  const location = useLocation(); // Чтобы знать текущий путь
-  const [searchParams] = useSearchParams(); // Чтобы получить текущий параметр поиска из URL
+  const [anchorElUserMenu, setAnchorElUserMenu] = useState<null | HTMLElement>(null);
+  
+  const muiStdTheme = useTheme(); // Стандартная тема MUI для брейкпоинтов
+  const isMobile = useMediaQuery(muiStdTheme.breakpoints.down('sm'));
+  const isMediumOrUp = useMediaQuery(muiStdTheme.breakpoints.up('md'));
 
-  // Состояние для поискового запроса в хедере
+  const navigate = useNavigate();
+  const location = useLocation();
+  const [searchParams] = useSearchParams();
+
   const [searchQuery, setSearchQuery] = useState('');
 
-  // Эффект для обновления searchQuery в хедере, если параметр search изменился в URL
-  // (например, при переходе по ссылке с тегом или при навигации назад/вперед)
   useEffect(() => {
     const currentSearchParam = searchParams.get('search');
-    if (location.pathname === '/') { // Обновляем поле поиска только если мы на главной
+    if (location.pathname === '/') {
         setSearchQuery(currentSearchParam || '');
     } else {
-        // Если мы не на главной, можно очистить поле поиска в хедере
-        // или оставить его как есть, в зависимости от желаемого поведения
-        setSearchQuery(''); // Очищаем, если ушли с главной
+        setSearchQuery('');
     }
   }, [searchParams, location.pathname]);
 
-
-  const handleMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorEl(event.currentTarget);
-  const handleMenuClose = () => setAnchorEl(null);
+  const handleUserMenuOpen = (event: React.MouseEvent<HTMLElement>) => setAnchorElUserMenu(event.currentTarget);
+  const handleUserMenuClose = () => setAnchorElUserMenu(null);
 
   const handleProfileClick = () => {
-    handleMenuClose();
+    handleUserMenuClose();
     navigate('/profile');
   };
 
   const handleLogoutClick = async () => {
-    handleMenuClose();
+    handleUserMenuClose();
     await logout();
     navigate('/');
   };
@@ -67,31 +78,22 @@ const Header = () => {
     setSearchQuery(event.target.value);
   };
 
-  const handleSearchSubmit = (event?: React.FormEvent<HTMLFormElement> | React.KeyboardEvent<HTMLDivElement>) => {
-    if (event && typeof (event as React.FormEvent<HTMLFormElement>).preventDefault === 'function') {
-        (event as React.FormEvent<HTMLFormElement>).preventDefault();
-    }
+  const handleSearchSubmit = (event?: React.FormEvent<HTMLFormElement>) => {
+    if (event) event.preventDefault();
     const trimmedQuery = searchQuery.trim();
     if (trimmedQuery) {
-      navigate(`/?search=${encodeURIComponent(trimmedQuery)}`);
+      navigate(`/?search=${encodeURIComponent(trimmedQuery)}&page=1`);
     } else {
-      // Если запрос пустой, но мы уже на главной, можем просто убрать search параметр
-      // или если не на главной - перейти на главную без параметров
-      if (location.pathname === '/') {
-        navigate('/'); // Уберет search параметр, если он был
-      } else {
-        navigate('/');
-      }
+      navigate('/');
     }
   };
-
 
   const renderAuthSection = () => {
     if (loading) {
       return (
         <Box display="flex" alignItems="center" gap={1}>
-          <Skeleton variant="circular" width={32} height={32} animation="wave" />
-          {!isMobile && <Skeleton variant="text" width={80} height={20} animation="wave" />}
+          <Skeleton variant="circular" width={32} height={32} animation="wave"/>
+          {!isMobile && <Skeleton variant="text" width={70} height={20} animation="wave"/>}
         </Box>
       );
     }
@@ -99,28 +101,38 @@ const Header = () => {
     if (user) {
       return (
         <>
-          <IconButton onClick={handleMenuOpen} size="small" sx={{ p: 0 }}>
-            <Avatar
-              src={user.pictureUrl || undefined} // Добавил undefined для случая null
-              alt={user.name}
-              sx={{ width: 32, height: 32 }}
-            />
-          </IconButton>
+          <Tooltip title="Меню пользователя">
+            <IconButton onClick={handleUserMenuOpen} size="small" sx={{ p: 0 }} id="user-menu-button-header">
+              <Avatar
+                src={user.pictureUrl || undefined}
+                alt={user.name || 'User Avatar'}
+                sx={{ width: 32, height: 32, border: '1px solid', borderColor: 'divider' }}
+              >
+                {!user.pictureUrl && <AccountCircleIcon />}
+              </Avatar>
+            </IconButton>
+          </Tooltip>
           <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
+            anchorEl={anchorElUserMenu}
+            open={Boolean(anchorElUserMenu)}
+            onClose={handleUserMenuClose}
             anchorOrigin={{ vertical: 'bottom', horizontal: 'right' }}
             transformOrigin={{ vertical: 'top', horizontal: 'right' }}
-            MenuListProps={{ 'aria-labelledby': 'user-menu-button' }} // Для доступности
-            sx={{ mt: '45px' }} // Можно заменить на PaperProps sx для лучшей практики
+            MenuListProps={{ 'aria-labelledby': 'user-menu-button-header' }}
+            PaperProps={{sx: { minWidth: 220, borderRadius: 2, mt: 1.5, boxShadow: muiStdTheme.shadows[3] }}}
           >
-            <Box sx={{ px: 2, py: 1, borderBottom: '1px solid', borderColor: 'divider' }}>
-              <Typography variant="subtitle2" noWrap>{user.name}</Typography>
+            <Box sx={{ px: 2, py: 1.5, borderBottom: 1, borderColor: 'divider' }}>
+              <Typography variant="subtitle1" fontWeight="medium" noWrap>{user.name}</Typography>
               {user.email && <Typography variant="caption" color="text.secondary" noWrap>{user.email}</Typography>}
             </Box>
-            <MenuItem onClick={handleProfileClick}>Профиль</MenuItem>
-            <MenuItem onClick={handleLogoutClick}>Выйти</MenuItem>
+            <MenuItem onClick={handleProfileClick} sx={{py: 1.25, px: 2}}>
+              <ListItemIcon sx={{minWidth: 36}}><PersonOutlineIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Профиль</ListItemText>
+            </MenuItem>
+            <MenuItem onClick={handleLogoutClick} sx={{py: 1.25, px: 2}}>
+              <ListItemIcon sx={{minWidth: 36}}><ExitToAppIcon fontSize="small" /></ListItemIcon>
+              <ListItemText>Выйти</ListItemText>
+            </MenuItem>
           </Menu>
         </>
       );
@@ -128,22 +140,13 @@ const Header = () => {
       return (
         <Button
           variant="contained"
-          color="primary" // Явно укажем цвет
+          color="primary"
           onClick={login}
+          size={isMobile ? "small" : "medium"}
           startIcon={
-            <img
-              src="https://www.google.com/favicon.ico"
-              alt="Google"
-              style={{ height: 18, marginRight: 0 }} // Уменьшил и убрал отступ
-            />
+            <img src="https://www.google.com/favicon.ico" alt="Google" style={{ height: 16, width: 16 }}/>
           }
-          sx={{
-            // border: '1px solid divider', // Не нужно для contained
-            boxShadow: 0,
-            textTransform: 'none', // Уберем капс
-            fontSize: '0.875rem',
-            px: 1.5, // Немного уменьшим паддинг
-          }}
+          sx={{ textTransform: 'none', whiteSpace: 'nowrap', px: isMobile ? 1.25 : 1.75, py: isMobile ? 0.5 : 0.75 }}
         >
           Войти
         </Button>
@@ -154,98 +157,81 @@ const Header = () => {
   return (
     <AppBar
       position="fixed"
+      color="inherit" // Наследует фон из темы (background.paper)
+      // elevation={0} // Управляется из темы (components.MuiAppBar.defaultProps)
       sx={{
         zIndex: (theme) => theme.zIndex.drawer + 1,
-        backgroundColor: 'background.paper',
-        boxShadow: (theme) => theme.shadows[1] // Более мягкая тень
+        // borderBottom и boxShadow также должны применяться из темы
       }}
     >
-      <Toolbar
-        sx={{
-          minHeight: { xs: 56, sm: 64 }, // Стандартные высоты
-          px: { xs: 1, sm: 2, md: 3 }, // Адаптивные отступы
-        }}
-      >
-        <Box
-          sx={{
-            maxWidth: '1200px', // Можно использовать стандартные брейкпоинты MUI
-            width: '100%',
-            mx: 'auto',
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: { xs: 1, sm: 2 } // Пространство между основными блоками
-          }}
-        >
-          {/* Левая часть */}
-          <Box display="flex" alignItems="center" sx={{ flexShrink: 0 }}> {/* Предотвращает сжатие лого */}
-            <Link
-              component={RouterLink}
-              to="/"
-              color="text.primary" // Для лучшей читаемости на фоне paper
-              underline="none"
-              sx={{ display: 'flex', alignItems: 'center', mr: { xs: 1, sm: 2} }}
-            >
-              <img src="/newlogo.png" alt="Logo" style={{ height: 32, marginRight: isMobile ? 4 : 8 }} />
-              <Typography variant="h6" fontWeight="bold" component="div" sx={{ display: { xs: 'none', sm: 'block' }, color: 'text.primary' }}>
-                StackOverStudy
-              </Typography>
-              <Typography variant="h6" fontWeight="bold" component="div" sx={{ display: { xs: 'block', sm: 'none' }, color: 'text.primary' }}>
-                SOS
-              </Typography>
-            </Link>
+      <Container maxWidth="lg"> {/* Тот же maxWidth, что и в App.tsx, БЕЗ disableGutters */}
+        <Toolbar disableGutters sx={{ minHeight: { xs: 56, sm: 64 } }}> {/* Toolbar БЕЗ px, disableGutters чтобы не добавлял своих отступов */}
+          <Box sx={{ display: 'flex', alignItems: 'center', width: '100%', justifyContent: 'space-between', gap: {xs: 0.5, sm: 1} }}>
+            
+            <Box sx={{ display: 'flex', alignItems: 'center', flexShrink: 0, mr: {xs: 0, sm: 1} }}>
+              <IconButton
+                aria-label="open drawer"
+                edge="start"
+                onClick={onDrawerToggle}
+                sx={{ display: { md: 'none' }, mr: 0.5, color: 'text.secondary' }}
+              >
+                <MenuIcon />
+              </IconButton>
+              <Link component={RouterLink} to="/" underline="none" sx={{ display: 'flex', alignItems: 'center' }}>
+                <img src="/logo.png" alt="Logo" style={{ height: isMobile ? 28 : 32, marginRight: 8 }} />
+                <Typography
+                  variant={isMobile ? "h6" : "h5"}
+                  noWrap
+                  component="div"
+                  color="text.primary"
+                  fontWeight="bold"
+                  sx={{ display: { xs: 'none', sm: 'block' } }}
+                >
+                  StackOverStudy
+                </Typography>
+                <Typography variant="h6" fontWeight="bold" component="div" sx={{ display: { xs: 'block', sm: 'none' }, color: 'text.primary' }}>
+                  SOS
+                </Typography>
+              </Link>
+            </Box>
 
-            <Link
-              component={RouterLink}
-              to="/about"
-              color="inherit"
-              underline="hover" // Можно hover для лучшей интерактивности
-              sx={{
-                display: { xs: 'none', md: 'block' },
-                color: 'text.secondary',
-                '&:hover': { color: 'text.primary'}
-              }}
-            >
-              <Button color="inherit" size="small">О нас</Button>
-            </Link>
-          </Box>
+            <Box sx={{ flexGrow: 1, mx: { xs: 1, sm: 2 }, maxWidth: {xs: 200, sm: 350, md: 500} }}>
+              <form onSubmit={handleSearchSubmit}>
+                <TextField
+                  placeholder="Поиск..."
+                  size="small"
+                  variant="outlined"
+                  fullWidth
+                  value={searchQuery}
+                  onChange={handleSearchChange}
+                  InputProps={{
+                    startAdornment: (
+                      <InputAdornment position="start">
+                        <SearchIcon fontSize="small" color="action" />
+                      </InputAdornment>
+                    ),
+                  }}
+                  // Стили для TextField теперь должны применяться из темы (components.MuiTextField)
+                />
+              </form>
+            </Box>
 
-          {/* Поиск (теперь обернут в форму) */}
-          <Box sx={{ flexGrow: 1, mx: { xs: 1, sm: 2 }, maxWidth: '600px' }}>
-            <form onSubmit={handleSearchSubmit}>
-              <TextField
-                placeholder="Поиск вопросов..."
-                size="small"
-                variant="outlined"
-                fullWidth
-                value={searchQuery}
-                onChange={handleSearchChange}
-                InputProps={{
-                  startAdornment: (
-                    <InputAdornment position="start">
-                      <SearchIcon color="action" />
-                    </InputAdornment>
-                  ),
-                }}
-                sx={{
-                    '& .MuiOutlinedInput-root': {
-                        borderRadius: '20px', // Скругленные углы
-                        backgroundColor: (theme) => theme.palette.mode === 'dark' ? 'rgba(255,255,255,0.05)' : 'rgba(0,0,0,0.03)'
-                    },
-                }}
-              />
-            </form>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: {xs: 0.25, sm: 1}, flexShrink: 0 }}>
+              {isMediumOrUp && (
+                  <Button component={RouterLink} to="/about" color="inherit" size="small" sx={{color: 'text.secondary', '&:hover': {color: 'text.primary', bgcolor: 'action.hover'}}}>
+                      О нас
+                  </Button>
+              )}
+              <Tooltip title={mode === 'dark' ? 'Светлая тема' : 'Темная тема'}>
+                <IconButton onClick={toggleTheme} sx={{color: 'text.secondary'}}>
+                  {mode === 'dark' ? <Brightness7Icon fontSize="small"/> : <Brightness4Icon fontSize="small"/>}
+                </IconButton>
+              </Tooltip>
+              {renderAuthSection()}
+            </Box>
           </Box>
-
-          {/* Правая часть */}
-          <Box display="flex" alignItems="center" gap={{xs: 0.5, sm:1}} sx={{ flexShrink: 0 }}> {/* Предотвращает сжатие */}
-            <IconButton onClick={toggleTheme} color="inherit" aria-label="сменить тему" sx={{color: 'text.secondary'}}>
-              {mode === 'dark' ? <Brightness7Icon /> : <Brightness4Icon />}
-            </IconButton>
-            {renderAuthSection()}
-          </Box>
-        </Box>
-      </Toolbar>
+        </Toolbar>
+      </Container>
     </AppBar>
   );
 };
