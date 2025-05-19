@@ -1,22 +1,25 @@
+// src/AuthContext.tsx
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295';
+
 // Интерфейс для пользователя в контексте
-interface AuthUser {
+export interface AuthUser { // <--- ДОБАВЬ export ЗДЕСЬ
     id: number;
     name: string;
     email: string;
-    pictureUrl: string;
-    // Добавьте другие поля, если они возвращаются и нужны
+    pictureUrl?: string;
+    role: string;
 }
 
 // Тип контекста
 interface AuthContextType {
     user: AuthUser | null;
-    loading: boolean; // Флаг первоначальной загрузки/проверки пользователя
+    loading: boolean;
     login: () => void;
-    logout: () => Promise<void>; // Функция выхода асинхронная
-    refetchUser: () => Promise<void>; // Функция для принудительного обновления данных
+    logout: () => Promise<void>;
+    refetchUser: () => Promise<void>;
 }
 
 // Создание контекста
@@ -34,88 +37,69 @@ export const useAuth = () => {
 // Компонент-провайдер
 export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
     const [user, setUser] = useState<AuthUser | null>(null);
-    const [loading, setLoading] = useState(true); // Начинаем с true, т.к. нужно проверить пользователя
+    const [loading, setLoading] = useState(true);
 
-    // Функция для запроса данных пользователя
     const fetchUser = useCallback(async () => {
-        console.log('[AuthContext] Запрос данных пользователя...');
-        // Не ставим setLoading(true), так как начальное состояние уже true
+        // console.log('[AuthContext] Запрос данных пользователя...');
         try {
-            // Запрос к бэкенду (защищенному эндпоинту)
-            const response = await axios.get<AuthUser>('https://localhost:7295/Auth/user', {
-                withCredentials: true // Отправляем куки
+            const response = await axios.get<AuthUser>(`${API_BASE_URL}/Auth/user`, {
+                withCredentials: true
             });
-
-            // Проверяем, что данные пришли и содержат ID
             if (response.data && response.data.id) {
-                setUser(response.data);
-                console.log('[AuthContext] Пользователь успешно получен:', response.data);
+                // Убедимся, что роль есть, или установим дефолтную
+                const userData = { ...response.data, role: response.data.role || 'User' };
+                setUser(userData);
+                console.log('[AuthContext] Пользователь успешно получен:', userData);
             } else {
-                console.warn('[AuthContext] Получены данные пользователя без ID. Сброс пользователя.');
+                // console.warn('[AuthContext] Получены данные пользователя без ID или данных. Сброс пользователя.');
                 setUser(null);
             }
         } catch (error) {
-            // Ошибки (401 Unauthorized, 404 Not Found, 500 Server Error и т.д.)
-            if (axios.isAxiosError(error)) {
-                const status = error.response?.status;
-                console.error(`[AuthContext] Ошибка при запросе пользователя (Статус: ${status || 'N/A'}):`, error.message);
-                // Если 401, возможно, токен невалиден или отсутствует
-            } else {
-                console.error('[AuthContext] Неизвестная ошибка при запросе пользователя:', error);
-            }
-            setUser(null); // Сбрасываем пользователя при любой ошибке
+            // if (axios.isAxiosError(error) && error.response?.status !== 401) {
+            //     console.error(`[AuthContext] Ошибка при запросе пользователя:`, error.message);
+            // }
+            setUser(null);
         } finally {
-            setLoading(false); // Завершаем первоначальную загрузку
-            console.log('[AuthContext] Попытка запроса пользователя завершена. Загрузка:', false);
+            setLoading(false);
+            // console.log('[AuthContext] Попытка запроса пользователя завершена.');
         }
-    }, []); // useCallback с пустыми зависимостями
+    }, []);
 
-    // Выполняем запрос пользователя при первом монтировании провайдера
     useEffect(() => {
         fetchUser();
-    }, [fetchUser]); // Зависимость от fetchUser (из useCallback)
+    }, [fetchUser]);
 
-    // Функция для инициирования входа через Google
     const login = () => {
-        console.log('[AuthContext] Перенаправление на Google Login...');
-        // Очищаем состояние перед редиректом (на всякий случай)
+        // console.log('[AuthContext] Перенаправление на Google Login...');
         setUser(null);
-        setLoading(true); // Показываем загрузку на время редиректа
-        window.location.href = 'https://localhost:7295/Auth/google-login';
+        setLoading(true);
+        window.location.href = `${API_BASE_URL}/Auth/google-login`;
     };
 
-    // Асинхронная функция выхода
     const logout = async () => {
-        console.log('[AuthContext] Попытка выхода...');
-        // Можно установить loading=true для индикации
+        // console.log('[AuthContext] Попытка выхода...');
         try {
-            // Отправляем запрос на бэкенд для удаления кук на сервере
-            await axios.post('https://localhost:7295/Auth/logout', {}, { withCredentials: true });
-            console.log('[AuthContext] Запрос на выход успешно отправлен.');
+            await axios.post(`${API_BASE_URL}/Auth/logout`, {}, { withCredentials: true });
+            // console.log('[AuthContext] Запрос на выход успешно отправлен.');
         } catch (error) {
-            // Логируем ошибку, но всё равно выходим на клиенте
-            if (axios.isAxiosError(error)) {
-                console.error(`[AuthContext] Ошибка при запросе на выход (${error.response?.status}):`, error.message);
-            } else {
-                console.error('[AuthContext] Ошибка при запросе на выход:', error);
-            }
+            // if (axios.isAxiosError(error)) {
+            //     console.error(`[AuthContext] Ошибка при запросе на выход (${error.response?.status}):`, error.message);
+            // } else {
+            //     console.error('[AuthContext] Ошибка при запросе на выход:', error);
+            // }
         } finally {
-            // Гарантированно сбрасываем пользователя и состояние загрузки
             setUser(null);
-            setLoading(false); // Считаем процесс аутентификации завершенным (пользователя нет)
-            console.log('[AuthContext] Пользователь сброшен на клиенте. Загрузка:', false);
-            // Можно добавить редирект: navigate('/');
+            setLoading(false);
+            // console.log('[AuthContext] Пользователь сброшен на клиенте.');
         }
     };
 
-    // Функция для принудительного обновления данных пользователя
     const refetchUser = async () => {
-        console.log('[AuthContext] Принудительное обновление данных пользователя...');
-        setLoading(true); // Показываем загрузку
-        await fetchUser(); // Вызываем основную функцию запроса
+        // console.log('[AuthContext] Принудительное обновление данных пользователя...');
+        setLoading(true);
+        await fetchUser();
     };
 
-    // Передаем состояние и функции в контекст
     const value = { user, loading, login, logout, refetchUser };
 
     return (
