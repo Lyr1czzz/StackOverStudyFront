@@ -7,7 +7,7 @@ import {
 } from '@mui/material';
 import CommentItem from './CommentItem';
 import AddCommentForm from './AddCommentForm';
-import { useAuth, AuthUser } from '../AuthContext'; // Импортируем AuthUser
+import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 

@@ -8,11 +8,9 @@ import {
   ListItemText,
   Typography,
   Box,
-  useTheme, // Для доступа к теме, если нужно
 } from '@mui/material';
 import HomeIcon from '@mui/icons-material/Home';
 import InfoIcon from '@mui/icons-material/Info';
-import PersonIcon from '@mui/icons-material/Person';
 import TagIcon from '@mui/icons-material/Tag';
 import AddCommentIcon from '@mui/icons-material/AddComment'; // Или CreateIcon / PostAddIcon
 
@@ -22,7 +20,6 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ onDrawerToggle }) => {
   const location = useLocation();
-  const theme = useTheme(); // Можно использовать для кастомных стилей
 
   const navItems = [
     { path: '/', icon: <HomeIcon />, text: 'Главная' },

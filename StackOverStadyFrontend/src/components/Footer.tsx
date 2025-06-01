@@ -1,270 +1,166 @@
-// src/components/Footer.tsx
-import React from 'react';
 import {
   Box,
   Typography,
-  Link,
+  Link as MuiLink, // Переименовал, чтобы не конфликтовать с RouterLink
   Divider,
-  Grid,
-  Stack
+  Stack,
+  IconButton, // Для иконок соцсетей, если захочешь сделать их просто иконками
+  useTheme,
+  Tooltip,
 } from '@mui/material';
+import { Link as RouterLink } from 'react-router-dom'; // Для навигации
+
+// Иконки для навигации и соцсетей
 import HomeIcon from '@mui/icons-material/Home';
-import InfoIcon from '@mui/icons-material/Info';
-import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer';
-import PersonIcon from '@mui/icons-material/Person';
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; // Используем Outlined версию
+import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
+import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
-import TwitterIcon from '@mui/icons-material/Twitter';
+// import TwitterIcon from '@mui/icons-material/Twitter'; // Если нужен Twitter
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
+  const theme = useTheme();
+
+  const navLinkStyles = {
+    display: 'flex',
+    alignItems: 'center',
+    py: 0.5, // Уменьшим вертикальный отступ
+    color: 'text.secondary',
+    textDecoration: 'none',
+    '&:hover': {
+      color: 'primary.main',
+      textDecoration: 'underline',
+    },
+  };
+
+  const socialLinkStyles = {
+    color: 'text.secondary',
+    '&:hover': {
+      color: 'primary.main',
+    },
+  };
 
   return (
     <Box
       component="footer"
       sx={{
-        mt: 'auto',
-        pt: 3,
-        pb: 2,
-        bgcolor: 'background.paper',
-        borderTop: 1,
-        borderColor: 'divider'
+        mt: 'auto', // Прижимает футер к низу, если контент короче
+        pt: { xs: 3, sm: 4 }, // Адаптивные отступы
+        pb: { xs: 2, sm: 3 },
+        backgroundColor: 'background.paper', // Из темы
+        borderTop: `1px solid ${theme.palette.divider}`, // Из темы
       }}
     >
-      {/* Ограниченный контейнер */}
-      <Box
+      <Box // Контейнер для ограничения ширины, аналог Container maxWidth="lg"
         sx={{
-          maxWidth: '1200px',
+          maxWidth: 'lg', // Используем брейкпоинт из темы, соответствует 1200px по умолчанию
           mx: 'auto',
-          px: 3
+          px: { xs: 2, sm: 3 }, // Адаптивные боковые отступы
         }}
       >
-        {/* Основная часть футера */}
-        <Grid container spacing={3} sx={{ mb: 3 }}>
-          {/* Левая колонка */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
+        {/* Верхняя часть с колонками */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', md: 'row' }, // Колонки на md+, стек на xs
+            justifyContent: 'space-between',
+            gap: { xs: 3, md: 4 }, // Отступы между колонками
+            mb: { xs: 3, sm: 4 },
+          }}
+        >
+          {/* Колонка 1: Навигация по сайту */}
+          <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}> {/* flex-grow, flex-shrink, flex-basis */}
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
               StackOverStudy
             </Typography>
-            <Stack spacing={1} component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => window.location.href = '/'}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <HomeIcon fontSize="small" sx={{ mr: 1 }} />
-                  Home
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => window.location.href = '/questions'}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <QuestionAnswerIcon fontSize="small" sx={{ mr: 1 }} />
-                  Вопросы
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => window.location.href = '/about'}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <InfoIcon fontSize="small" sx={{ mr: 1 }} />
-                  О нас
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => window.location.href = '/profile'}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <PersonIcon fontSize="small" sx={{ mr: 1 }} />
-                  Профиль
-                </Link>
-              </li>
+            <Stack spacing={0.5} component="nav">
+              <MuiLink component={RouterLink} to="/" sx={navLinkStyles}>
+                <HomeIcon fontSize="small" sx={{ mr: 1 }} />
+                Главная
+              </MuiLink>
+              <MuiLink component={RouterLink} to="/?sort=newest" sx={navLinkStyles}> {/* Пример ссылки на вопросы */}
+                <QuestionAnswerOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+                Вопросы
+              </MuiLink>
+              <MuiLink component={RouterLink} to="/about" sx={navLinkStyles}>
+                <InfoOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+                О нас
+              </MuiLink>
+              <MuiLink component={RouterLink} to="/profile" sx={navLinkStyles}>
+                <PersonOutlineOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
+                Профиль
+              </MuiLink>
             </Stack>
-          </Grid>
-
-          {/* Центральная колонка */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-              Компания
-            </Typography>
-            <Stack spacing={1} component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => alert('О проекте')}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  О проекте
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => alert('Условия использования')}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  Условия использования
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => alert('Политика конфиденциальности')}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  Политика конфиденциальности
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="button"
-                  color="text.secondary"
-                  underline="hover"
-                  onClick={() => alert('Реклама')}
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  Реклама
-                </Link>
-              </li>
-            </Stack>
-          </Grid>
-
-          {/* Правая колонка */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-              Связь
-            </Typography>
-            <Stack spacing={1} component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-              <li>
-                <Link
-                  component="a"
-                  href="https://github.com"
-                  color="text.secondary"
-                  underline="hover"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <GitHubIcon fontSize="small" sx={{ mr: 1 }} />
-                  GitHub
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="a"
-                  href="https://linkedin.com"
-                  color="text.secondary"
-                  underline="hover"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <LinkedInIcon fontSize="small" sx={{ mr: 1 }} />
-                  LinkedIn
-                </Link>
-              </li>
-              <li>
-                <Link
-                  component="a"
-                  href="https://twitter.com"
-                  color="text.secondary"
-                  underline="hover"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ display: 'flex', alignItems: 'center' }}
-                >
-                  <TwitterIcon fontSize="small" sx={{ mr: 1 }} />
-                  Twitter
-                </Link>
-              </li>
-            </Stack>
-          </Grid>
-
-          {/* Права и статистика */}
-          <Grid item xs={12} md={3}>
-            <Typography variant="subtitle2" fontWeight="bold" gutterBottom>
-              Статистика
-            </Typography>
-            <Stack spacing={1} component="ul" sx={{ listStyle: 'none', p: 0, m: 0 }}>
-              <li>
-                <Typography variant="body2" color="text.secondary">
-                  24,235,748 вопросов
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2" color="text.secondary">
-                  © {currentYear} StackOverStudy
-                </Typography>
-              </li>
-              <li>
-                <Typography variant="body2" color="text.secondary">
-                  Разработано с ❤️ на React + MUI
-                </Typography>
-              </li>
-            </Stack>
-          </Grid>
-        </Grid>
-
-        {/* Разделитель */}
-        <Divider sx={{ my: 2 }} />
-
-        {/* Нижняя строка */}
-        <Box sx={{ display: 'flex', justifyContent: 'space-between', flexWrap: 'wrap', gap: 2 }}>
-          <Typography variant="body2" color="text.secondary">
-            © {currentYear} StackOverStudy · Все права защищены
-          </Typography>
-
-          <Box sx={{ display: 'flex', gap: 2 }}>
-            <Link
-              component="button"
-              color="text.secondary"
-              underline="hover"
-              variant="body2"
-              onClick={() => alert('Условия использования')}
-            >
-              Условия
-            </Link>
-            <Link
-              component="button"
-              color="text.secondary"
-              underline="hover"
-              variant="body2"
-              onClick={() => alert('Конфиденциальность')}
-            >
-              Конфиденциальность
-            </Link>
-            <Link
-              component="button"
-              color="text.secondary"
-              underline="hover"
-              variant="body2"
-              onClick={() => alert('Файлы cookie')}
-            >
-              Файлы cookie
-            </Link>
           </Box>
+
+          {/* Колонка 2: Компания/Ресурсы */}
+          <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
+              Ресурсы
+            </Typography>
+            <Stack spacing={0.5}>
+              <MuiLink component={RouterLink} to="/about" sx={navLinkStyles}>
+                О проекте
+              </MuiLink>
+              <MuiLink component={RouterLink} to="/terms" sx={navLinkStyles} onClick={(e) => { e.preventDefault(); alert('Страница "Условия использования" в разработке');}}>
+                Условия использования
+              </MuiLink>
+              <MuiLink component={RouterLink} to="/privacy" sx={navLinkStyles} onClick={(e) => { e.preventDefault(); alert('Страница "Политика конфиденциальности" в разработке');}}>
+                Политика конфиденциальности
+              </MuiLink>
+            </Stack>
+          </Box>
+
+          {/* Колонка 3: Социальные сети / Связь */}
+          <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}>
+            <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
+              Свяжитесь с нами
+            </Typography>
+            <Stack direction="row" spacing={1.5} sx={{mt:1}}>
+              <Tooltip title="GitHub проекта">
+                <IconButton component="a" href="https://github.com/YOUR_USERNAME/YOUR_REPO" target="_blank" rel="noopener noreferrer" sx={socialLinkStyles} aria-label="GitHub">
+                  <GitHubIcon />
+                </IconButton>
+              </Tooltip>
+              <Tooltip title="LinkedIn (если есть)">
+                <IconButton component="a" href="https://linkedin.com/in/YOUR_PROFILE" target="_blank" rel="noopener noreferrer" sx={socialLinkStyles} aria-label="LinkedIn">
+                  <LinkedInIcon />
+                </IconButton>
+              </Tooltip>
+              {/* Добавьте другие соцсети по необходимости */}
+            </Stack>
+             <Typography variant="body2" color="text.secondary" sx={{mt: 2}}>
+                Email: contact@stackoverstudy.dev
+            </Typography>
+          </Box>
+
+        </Box>
+
+        <Divider sx={{ my: 2.5 }} />
+
+        {/* Нижняя строка с копирайтом и доп. ссылками */}
+        <Box 
+          sx={{ 
+            display: 'flex', 
+            flexDirection: { xs: 'column', sm: 'row' }, // На маленьких экранах в столбик
+            justifyContent: 'space-between', 
+            alignItems: 'center', 
+            gap: 2 
+          }}
+        >
+          <Typography variant="body2" color="text.secondary">
+            © {currentYear} StackOverStudy. Все права защищены.
+          </Typography>
+          <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
+            <MuiLink component={RouterLink} to="/terms" color="text.secondary" underline="hover" variant="caption" onClick={(e) => { e.preventDefault(); alert('Страница "Условия использования" в разработке');}}>
+              Условия
+            </MuiLink>
+            <MuiLink component={RouterLink} to="/privacy" color="text.secondary" underline="hover" variant="caption" onClick={(e) => { e.preventDefault(); alert('Страница "Политика конфиденциальности" в разработке');}}>
+              Конфиденциальность
+            </MuiLink>
+          </Stack>
         </Box>
       </Box>
     </Box>

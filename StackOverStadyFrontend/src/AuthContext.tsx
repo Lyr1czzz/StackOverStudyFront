@@ -11,6 +11,7 @@ export interface AuthUser { // <--- ДОБАВЬ export ЗДЕСЬ
     email: string;
     pictureUrl?: string;
     role: string;
+    rating: number;
 }
 
 // Тип контекста

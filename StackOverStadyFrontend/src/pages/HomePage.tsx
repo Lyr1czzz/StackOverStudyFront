@@ -1,13 +1,14 @@
+// src/pages/HomePage.tsx
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import axios from 'axios';
 import {
   Box, Typography, CircularProgress, Alert, Button,
   TextField, Collapse, Stack, Pagination,
-  IconButton, Paper, Link as MuiLink, InputAdornment, useTheme, Tooltip,
+  IconButton, Paper, Link as MuiLink, InputAdornment, Tooltip,
   Autocomplete
 } from '@mui/material';
 import { Link as RouterLink, useSearchParams } from 'react-router-dom';
-import QuestionCard from '../components/QuestionCard'; // Убедись, что путь верный
+import QuestionCard from '../components/QuestionCard';
 import FilterListIcon from '@mui/icons-material/FilterList';
 import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
@@ -15,7 +16,6 @@ import RotateLeftIcon from '@mui/icons-material/RotateLeft';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
 
-// Интерфейсы (убедись, что они соответствуют твоему API)
 export interface UserSummary {
   id: number;
   name: string;
@@ -25,7 +25,6 @@ export interface UserSummary {
 export interface TagSummary {
   id: number;
   name: string;
-  // questionCount?: number; // Если твой API /api/Tags возвращает это
 }
 export interface QuestionSummary {
   id: number;
@@ -45,7 +44,6 @@ interface PaginatedResponse<T> {
 }
 
 const HomePage = () => {
-  const theme = useTheme();
   const [questions, setQuestions] = useState<QuestionSummary[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +51,6 @@ const HomePage = () => {
 
   const [searchParams, setSearchParams] = useSearchParams();
 
-  // --- Состояния, управляющие API запросом ---
-  // Инициализируются из URL или значениями по умолчанию
   const [page, setPage] = useState<number>(() => parseInt(searchParams.get('page') || '1', 10));
   const [sortOrder, setSortOrder] = useState<'newest' | 'votes' | 'active'>(
     () => (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest'
@@ -65,47 +61,34 @@ const HomePage = () => {
   const [pageSize] = useState<number>(10);
   const [totalItems, setTotalItems] = useState(0);
 
-  // --- Состояния для UI элементов фильтров ---
   const [inputSearchText, setInputSearchText] = useState<string>(searchTextForAPI);
-  const [selectedTag, setSelectedTag] = useState<TagSummary | null>(null); // Выбранный объект тега
-  const [tagAutocompleteInputValue, setTagAutocompleteInputValue] = useState(''); // Текст в поле Autocomplete
+  const [selectedTag, setSelectedTag] = useState<TagSummary | null>(null);
+  const [tagAutocompleteInputValue, setTagAutocompleteInputValue] = useState('');
 
   const [allAvailableTags, setAllAvailableTags] = useState<TagSummary[]>([]);
   const [loadingTags, setLoadingTags] = useState<boolean>(false);
 
   const firstMount = useRef(true);
 
-
-  // 1. Эффект: Загрузка списка тегов для Autocomplete
   useEffect(() => {
     const fetchTags = async () => {
       setLoadingTags(true);
       try {
-        const response = await axios.get<TagSummary[]>(`${API_URL}/Tags`); // Используем /api/Tags
+        const response = await axios.get<TagSummary[]>(`${API_URL}/Tags`);
         setAllAvailableTags(response.data);
-        // Если в URL есть тег при первой загрузке, пытаемся его выбрать в Autocomplete
         const initialTagFromUrl = searchParams.get('tags');
         if (initialTagFromUrl) {
           const found = response.data.find(t => t.name.toLowerCase() === initialTagFromUrl.toLowerCase());
-          if (found) {
-            setSelectedTag(found);
-            setTagAutocompleteInputValue(found.name); // Устанавливаем текст в поле
-          } else {
-            setTagAutocompleteInputValue(initialTagFromUrl); // Если не нашли, просто ставим в инпут
-          }
+          if (found) { setSelectedTag(found); setTagAutocompleteInputValue(found.name); }
+          else { setTagAutocompleteInputValue(initialTagFromUrl); }
         }
-      } catch (e) {
-        console.error("Error fetching tags:", e);
-      } finally {
-        setLoadingTags(false);
-      }
+      } catch (e) { console.error("Error fetching tags:", e); }
+      finally { setLoadingTags(false); }
     };
     fetchTags();
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []); // Загружаем один раз
+  }, []);
 
-  // 2. Эффект: Синхронизация состояний фильтров (page, sortOrder, etc.) с searchParams URL
-  // Этот эффект срабатывает, когда URL меняется извне (например, кнопка "назад")
   useEffect(() => {
     const newPage = parseInt(searchParams.get('page') || '1', 10);
     const newSort = (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest';
@@ -116,29 +99,22 @@ const HomePage = () => {
     if (newSort !== sortOrder) setSortOrder(newSort);
     if (newTags !== tagFilterForAPI) {
         setTagFilterForAPI(newTags);
-        // Обновляем Autocomplete на основе нового значения newTags
         if (newTags) {
             const found = allAvailableTags.find(t => t.name.toLowerCase() === newTags.toLowerCase());
             setSelectedTag(found || null);
             setTagAutocompleteInputValue(found ? found.name : newTags);
-        } else {
-            setSelectedTag(null);
-            setTagAutocompleteInputValue('');
-        }
+        } else { setSelectedTag(null); setTagAutocompleteInputValue(''); }
     }
     if (newSearch !== searchTextForAPI) {
         setSearchTextForAPI(newSearch);
-        setInputSearchText(newSearch); // Синхронизируем поле ввода
+        setInputSearchText(newSearch);
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [searchParams, allAvailableTags]); // Зависим от searchParams и allAvailableTags для корректной установки selectedTag
+  }, [searchParams, allAvailableTags]); 
 
-  // 3. Эффект: Загрузка вопросов при изменении фильтров, влияющих на API-запрос
-  // Также обновляет URL этими параметрами
   const fetchAndSetUrl = useCallback(async () => {
-    setLoading(true);
-    setError(null);
-    console.log(`Fetching Questions with: page=${page}, sort=${sortOrder}, tags='${tagFilterForAPI}', search='${searchTextForAPI}'`);
+    setLoading(true); setError(null);
+    // console.log(`Fetching Questions with: page=${page}, sort=${sortOrder}, tags='${tagFilterForAPI}', search='${searchTextForAPI}'`); // Раскомментируй для отладки
 
     const params = new URLSearchParams();
     params.append('page', page.toString());
@@ -147,71 +123,57 @@ const HomePage = () => {
     if (searchTextForAPI) params.append('search', searchTextForAPI);
     params.append('pageSize', pageSize.toString());
 
-    // Обновляем URL перед запросом
     const newUrlParams: Record<string, string> = {};
     if (page > 1) newUrlParams.page = page.toString();
     if (sortOrder !== 'newest') newUrlParams.sort = sortOrder;
     if (tagFilterForAPI) newUrlParams.tags = tagFilterForAPI;
     if (searchTextForAPI) newUrlParams.search = searchTextForAPI;
     
-    // Только если параметры действительно изменились по сравнению с текущим URL
     const currentUrlSearchParams = new URLSearchParams(window.location.search);
     let shouldSetNewUrlParams = false;
     const allKeys = new Set([...Object.keys(newUrlParams), ...Array.from(currentUrlSearchParams.keys())]);
-    allKeys.forEach(key => {
-        if (newUrlParams[key] !== currentUrlSearchParams.get(key) && (newUrlParams[key] || currentUrlSearchParams.get(key) !== null )) {
-            shouldSetNewUrlParams = true;
-        }
-    });
-    if(shouldSetNewUrlParams){
+    allKeys.forEach(key => { if (newUrlParams[key] !== currentUrlSearchParams.get(key) && (newUrlParams[key] || currentUrlSearchParams.get(key) !== null )) shouldSetNewUrlParams = true; });
+    
+    if (shouldSetNewUrlParams) { // Обновляем URL, только если параметры изменились
         setSearchParams(newUrlParams, { replace: true });
+    } else if (Object.keys(newUrlParams).length === 0 && Array.from(currentUrlSearchParams.keys()).length > 0) {
+        // Если новые параметры пусты, а в URL что-то было, очищаем URL
+        setSearchParams({}, { replace: true });
     }
 
 
     try {
-      const response = await axios.get<PaginatedResponse<QuestionSummary>>(
-        `${API_URL}/Questions`, { params }
-      );
+      const response = await axios.get<PaginatedResponse<QuestionSummary>>(`${API_URL}/Questions`, { params });
       setQuestions(response.data.items);
       setTotalItems(response.data.totalCount);
     } catch (err) {
       console.error("Error fetching questions:", err);
-      if (axios.isAxiosError(err)) {
-        const errData = err.response?.data as { message?: string; details?: string };
-        setError(`Не удалось загрузить вопросы. ${errData?.message || errData?.details || 'Ошибка сервера'}`);
-      } else {
-        setError("Произошла неизвестная ошибка при загрузке вопросов.");
-      }
-    } finally {
-      setLoading(false);
-    }
+      if (axios.isAxiosError(err)) { const errData = err.response?.data as { message?: string; details?: string }; setError(`Не удалось загрузить вопросы. ${errData?.message || errData?.details || 'Ошибка сервера'}`); }
+      else { setError("Произошла неизвестная ошибка при загрузке вопросов."); }
+    } finally { setLoading(false); }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [page, sortOrder, tagFilterForAPI, searchTextForAPI, pageSize, setSearchParams]); // setSearchParams добавлен для стабильности useCallback
+  }, [page, sortOrder, tagFilterForAPI, searchTextForAPI, pageSize]); // Убрал setSearchParams, если он не меняется
 
   useEffect(() => {
-    // Пропускаем первый вызов, если состояния еще не синхронизированы с URL (если URL был непустой)
-    // или если это просто первый рендер с дефолтными значениями.
-    // Основной useEffect [searchParams, allAvailableTags] должен сначала установить корректные состояния.
     if (firstMount.current) {
         firstMount.current = false;
-        // Проверяем, нужно ли запустить fetchAndSetUrl на первом рендере,
-        // если параметры из URL были не дефолтными и уже установились
+        // Начальная загрузка, если параметры URL уже установлены и совпадают с состоянием
+        // или если URL пуст и используются дефолтные значения состояния.
         const initialSort = (searchParams.get('sort') as 'newest' | 'votes' | 'active') || 'newest';
         const initialTags = searchParams.get('tags') || '';
         const initialSearch = searchParams.get('search') || '';
         const initialPage = parseInt(searchParams.get('page') || '1', 10);
-        if(page !== initialPage || sortOrder !== initialSort || tagFilterForAPI !== initialTags || searchTextForAPI !== initialSearch){
-            // Состояния еще не синхронизированы с URL, ждем useEffect [searchParams]
-        } else {
-            fetchAndSetUrl(); // Состояния уже корректны, загружаем
+        if(page === initialPage && sortOrder === initialSort && tagFilterForAPI === initialTags && searchTextForAPI === initialSearch) {
+            fetchAndSetUrl();
         }
         return;
     }
     fetchAndSetUrl();
-  }, [fetchAndSetUrl]); // Зависимость только от fetchAndSetUrl
+  }, [fetchAndSetUrl]);
 
 
-  const handlePageChange = (event: React.ChangeEvent<unknown>, value: number) => {
+  // ИСПРАВЛЕНИЕ 1: убираем неиспользуемый 'event'
+  const handlePageChange = (_event: React.ChangeEvent<unknown>, value: number) => {
     setPage(value);
   };
 
@@ -224,9 +186,8 @@ const HomePage = () => {
 
   const handleApplyFilters = () => {
     const newSearchAPI = inputSearchText.trim();
-    const newTagAPI = selectedTag ? selectedTag.name : '';
+    const newTagAPI = selectedTag ? selectedTag.name : (tagAutocompleteInputValue.trim() || ''); // Используем текст из Autocomplete, если тег не выбран из списка
 
-    // Обновляем состояния для API, только если они изменились
     let stateChanged = false;
     if (newSearchAPI !== searchTextForAPI) {
       setSearchTextForAPI(newSearchAPI);
@@ -237,25 +198,25 @@ const HomePage = () => {
       stateChanged = true;
     }
 
-    if (page !== 1 || stateChanged) {
-      setPage(1); // Сброс страницы вызовет useEffect и fetchAndSetUrl
+    if (stateChanged || page !== 1) { // Если фильтры изменились или мы не на 1 странице
+        setPage(1);
     } else if (stateChanged && page === 1) {
       // Если страница уже 1, но фильтры изменились,
-      // fetchAndSetUrl вызовется из-за изменения searchTextForAPI или tagFilterForAPI
+      // fetchAndSetUrl вызовется из-за изменения searchTextForAPI или tagFilterForAPI через основной useEffect
     }
   };
   
   const handleClearSearchFilter = () => {
-    setInputSearchText(''); // Очищаем поле ввода
+    setInputSearchText('');
     if (searchTextForAPI !== '') {
-      setSearchTextForAPI(''); // Очищаем активный фильтр
+      setSearchTextForAPI('');
       setPage(1);
     }
   };
 
   const handleClearTagFilterFromAutocomplete = () => {
     setSelectedTag(null);
-    setTagAutocompleteInputValue('');
+    setTagAutocompleteInputValue(''); // Важно очистить и текст ввода
     if (tagFilterForAPI !== '') {
       setTagFilterForAPI('');
       setPage(1);
@@ -266,16 +227,13 @@ const HomePage = () => {
     setInputSearchText('');
     setSelectedTag(null);
     setTagAutocompleteInputValue('');
-    
     setSearchTextForAPI('');
     setTagFilterForAPI('');
     setSortOrder('newest');
     setPage(1);
-    // URL обновится через useEffect, слушающий эти состояния
   };
   
-  const areAnyFiltersApplied = Boolean(searchTextForAPI || tagFilterForAPI || sortOrder !== 'newest');
-
+  const areAnyFiltersApplied = Boolean(searchTextForAPI || tagFilterForAPI || sortOrder !== 'newest' || page !== 1);
   const pageCount = Math.ceil(totalItems / pageSize);
   const effectivePageTitle = tagFilterForAPI ? `Тег: "${tagFilterForAPI}"` : (searchTextForAPI ? `Поиск: "${searchTextForAPI}"`: 'Все вопросы');
 
@@ -339,7 +297,7 @@ const HomePage = () => {
             <Stack spacing={2}>
               <TextField
                 label="Поиск по вопросам"
-                value={inputSearchText} // Управляется inputSearchText
+                value={inputSearchText}
                 onChange={(e) => setInputSearchText(e.target.value)}
                 onKeyPress={(e) => e.key === 'Enter' && handleApplyFilters()}
                 fullWidth
@@ -358,19 +316,18 @@ const HomePage = () => {
                 size="small"
                 options={allAvailableTags}
                 loading={loadingTags}
-                value={selectedTag} // Управляется selectedTag (объект)
-                inputValue={tagAutocompleteInputValue} // Управляется текстом ввода
-                onInputChange={(event, newInputValue, reason) => {
+                value={selectedTag}
+                inputValue={tagAutocompleteInputValue}
+                // ИСПРАВЛЕНИЕ 2: убираем неиспользуемый 'event'
+                onInputChange={(_event, newInputValue, reason) => {
                     setTagAutocompleteInputValue(newInputValue);
-                    // Если пользователь очистил поле крестиком Autocomplete или стер все
                     if (reason === 'clear' || (reason === 'input' && newInputValue === '')) {
-                        if(selectedTag !== null) handleClearTagFilterFromAutocomplete(); // Вызываем наш кастомный обработчик
+                        if(selectedTag !== null || tagFilterForAPI !== '') handleClearTagFilterFromAutocomplete(); 
                     }
                 }}
-                onChange={(event, newValue: TagSummary | null) => {
-                    setSelectedTag(newValue); // Обновляем выбранный объект
-                    // Не нужно здесь вызывать handleApplyFilters или setTagFilterForAPI,
-                    // это произойдет при нажатии "Применить"
+                // ИСПРАВЛЕНИЕ 3: убираем неиспользуемый 'event'
+                onChange={(_event, newValue: TagSummary | null) => {
+                    setSelectedTag(newValue);
                 }}
                 getOptionLabel={(option) => option.name}
                 isOptionEqualToValue={(option, value) => option.id === value.id}
@@ -379,14 +336,12 @@ const HomePage = () => {
                     {...params}
                     label="Фильтр по тегу"
                     placeholder="Выберите или введите тег"
-                    // Убираем onKeyPress отсюда, чтобы не конфликтовать с Autocomplete
                     InputProps={{
                       ...params.InputProps,
                       endAdornment: (
                         <>
-                          {loadingTags ? <CircularProgress color="inherit" size={20} sx={{mr: selectedTag ? 1 : 0}} /> : null}
+                          {loadingTags ? <CircularProgress color="inherit" size={20} sx={{mr: params.InputProps.endAdornment ? 1 : 0}} /> : null}
                           {params.InputProps.endAdornment}
-                          {/* Кнопка X от Autocomplete сама очистит value (selectedTag) и inputValue */}
                         </>
                       ),
                     }}
@@ -399,7 +354,7 @@ const HomePage = () => {
                 <Button
                     onClick={handleApplyFilters}
                     variant="contained"
-                    disabled={loading || (inputSearchText.trim() === searchTextForAPI && (selectedTag?.name || '') === tagFilterForAPI)}
+                    disabled={loading || (inputSearchText.trim() === searchTextForAPI && (selectedTag?.name || (tagAutocompleteInputValue.trim() || '')) === tagFilterForAPI)}
                 >
                     Применить
                 </Button>
@@ -423,43 +378,11 @@ const HomePage = () => {
         </Collapse>
       </Paper>
 
-      {loading && (
-        <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}>
-          <CircularProgress />
-        </Box>
-      )}
+      {loading && ( <Box sx={{ display: 'flex', justifyContent: 'center', py: 5 }}> <CircularProgress /> </Box> )}
       {error && <Alert severity="error" sx={{mb: 2}}>{error}</Alert>}
-
-      {!loading && !error && questions.length === 0 && (
-        <Paper sx={{textAlign: 'center', p: {xs:2, sm:3}, color: 'text.secondary', mt: 2, }}>
-          <Typography variant="h6" gutterBottom>Ничего не найдено</Typography>
-          <Typography>
-            Попробуйте изменить фильтры или <MuiLink component={RouterLink} to="/ask" fontWeight="medium">задайте свой вопрос</MuiLink>.
-          </Typography>
-        </Paper>
-      )}
-
-      {!loading && !error && questions.length > 0 && (
-        <Stack spacing={2}>
-          {questions.map((question) => (
-            <QuestionCard key={question.id} question={question} />
-          ))}
-        </Stack>
-      )}
-
-      {pageCount > 1 && !loading && questions.length > 0 && (
-        <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}>
-          <Pagination
-            count={pageCount}
-            page={page}
-            onChange={handlePageChange}
-            color="primary"
-            showFirstButton
-            showLastButton
-            size={ (typeof window !== 'undefined' && window.innerWidth < 600) ? 'small' : 'medium' }
-          />
-        </Box>
-      )}
+      {!loading && !error && questions.length === 0 && ( <Paper sx={{textAlign: 'center', p: {xs:2, sm:3}, color: 'text.secondary', mt: 2, }}> <Typography variant="h6" gutterBottom>Ничего не найдено</Typography> <Typography> Попробуйте изменить фильтры или <MuiLink component={RouterLink} to="/ask" fontWeight="medium">задайте свой вопрос</MuiLink>. </Typography> </Paper> )}
+      {!loading && !error && questions.length > 0 && ( <Stack spacing={2}> {questions.map((question) => ( <QuestionCard key={question.id} question={question} /> ))} </Stack> )}
+      {pageCount > 1 && !loading && questions.length > 0 && ( <Box sx={{ mt: 3, display: 'flex', justifyContent: 'center' }}> <Pagination count={pageCount} page={page} onChange={handlePageChange} color="primary" showFirstButton showLastButton size={ (typeof window !== 'undefined' && window.innerWidth < 600) ? 'small' : 'medium' } /> </Box> )}
     </Box>
   );
 };

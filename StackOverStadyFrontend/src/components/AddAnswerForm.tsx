@@ -1,7 +1,7 @@
 // src/components/AddAnswerForm.tsx
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, Button, CircularProgress, Alert, Typography, useTheme } from '@mui/material';
+import { Box, Button, CircularProgress, Alert, useTheme } from '@mui/material';
 import RichTextEditor from './RichTextEditor'; // Предполагается, что RichTextEditor есть
 import { AnswerDto } from '../pages/QuestionDetailPage'; // Импорт интерфейса
 

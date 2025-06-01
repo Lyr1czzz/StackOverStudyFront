@@ -1,45 +1,40 @@
 // src/pages/Profile.tsx
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import axios from 'axios';
-import { useParams, useNavigate, Link as RouterLink } from 'react-router-dom';
 import {
   Container, Typography, CircularProgress, Box, Avatar, Alert, Button,
-  Paper, Grid, Tooltip, useTheme, Divider, Skeleton
+  Paper, Tooltip, useTheme, Skeleton // Убрал Grid
 } from '@mui/material';
-import { useAuth, AuthUser } from '../AuthContext'; // Импортируем AuthUser
-import StarIcon from '@mui/icons-material/Star'; // Для рейтинга
-// import EmojiEventsIcon from '@mui/icons-material/EmojiEvents'; // Пример иконки для ачивок
+import { useAuth } from '../AuthContext';
+import StarIcon from '@mui/icons-material/Star';
+import { useNavigate, useParams } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295';
 
-// Интерфейс для данных профиля с бэкенда
 interface UserProfileDataFromApi {
     id: number;
     name: string;
-    email?: string; // Email может быть только у своего профиля с /Auth/user
+    email?: string;
     pictureUrl: string;
-    rating: number; // Ожидаем рейтинг от /api/Users/{id}
-    // Могут быть и другие поля, специфичные для /api/Users/{id}, например, дата регистрации
-    // createdAt?: string; 
+    rating: number;
 }
 
-// Интерфейс для ачивки, как она приходит с бэкенда
 export interface AchievementInfo {
   name: string;
   description: string;
-  iconName: string; // Имя файла иконки или CSS класс
+  iconName: string;
   code: string;
 }
 
 export interface UserAchievement {
   achievement: AchievementInfo;
-  awardedAt: string; // Дата как строка
+  awardedAt: string;
 }
 
 const Profile = () => {
     const { userId: userIdFromParams } = useParams<{ userId?: string }>();
     const navigate = useNavigate();
-    const { user: loggedInUser, loading: authLoading } = useAuth(); // loggedInUser: AuthUser | null
+    const { user: loggedInUser, loading: authLoading } = useAuth();
     const theme = useTheme();
 
     const [profileData, setProfileData] = useState<UserProfileDataFromApi | null>(null);
@@ -48,30 +43,22 @@ const Profile = () => {
     const [loadingAchievements, setLoadingAchievements] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    // Определяем ID пользователя, чей профиль мы смотрим
-    // Если userIdFromParams есть, то это чужой профиль (или свой, если ID совпадают)
-    // Если userIdFromParams нет, то это профиль текущего залогиненного пользователя
     const targetUserId = userIdFromParams ? parseInt(userIdFromParams, 10) : loggedInUser?.id;
-    
-    // Определяем, является ли просматриваемый профиль профилем текущего залогиненного пользователя
     const isOwnProfile = loggedInUser !== null && targetUserId === loggedInUser.id;
 
-    // Загрузка данных профиля
     const fetchProfile = useCallback(async () => {
-        if (!targetUserId && !authLoading) { // Если ID не определен и загрузка AuthContext завершена
+        if (!targetUserId && !authLoading) {
             setError("Не удалось определить пользователя для отображения профиля.");
             setLoadingProfile(false);
-            if(!loggedInUser) navigate('/login'); // Если нет targetUserId и нет залогиненного пользователя, редирект на логин
+            if(!loggedInUser) navigate('/login');
             return;
         }
-        if (!targetUserId && authLoading) return; // Ждем загрузки AuthContext если targetUserId не из params
+        if (!targetUserId && authLoading) return;
 
         setLoadingProfile(true);
         setError(null);
         setProfileData(null);
 
-        // Если это свой профиль и ID из URL не указан, используем /Auth/user
-        // Иначе используем /api/Users/{targetUserId}
         const apiUrl = isOwnProfile && !userIdFromParams
             ? `${API_URL}/Auth/user`
             : `${API_URL}/api/Users/${targetUserId}`;
@@ -80,17 +67,17 @@ const Profile = () => {
 
         try {
             const response = await axios.get<UserProfileDataFromApi>(apiUrl, config);
-            // Если данные пришли с /Auth/user, у них может не быть рейтинга или ID, если мы их не добавили в AuthUser
-            // Но для /api/Users/{id} они должны быть.
-            // Дополняем данными из loggedInUser, если это свой профиль и использовался /Auth/user
             let finalProfileData = response.data;
             if (isOwnProfile && loggedInUser) {
                 finalProfileData = {
-                    ...loggedInUser, // Берем все из loggedInUser (включая email, id)
-                    ...response.data, // Перезаписываем тем, что пришло с /Auth/user (name, pictureUrl)
-                                      // и добавляем рейтинг, если он пришел с /api/Users/{id}
-                    rating: response.data.rating ?? loggedInUser.rating ?? 0, // Убеждаемся, что рейтинг есть
+                    ...loggedInUser, 
+                    ...response.data, 
+                    rating: response.data.rating ?? loggedInUser.rating ?? 0,
+                    id: loggedInUser.id,
+                    email: loggedInUser.email,
                 };
+            } else if (response.data && !response.data.id && targetUserId) {
+                finalProfileData.id = targetUserId;
             }
             setProfileData(finalProfileData);
         } catch (err) {
@@ -107,10 +94,8 @@ const Profile = () => {
         }
     }, [targetUserId, isOwnProfile, authLoading, loggedInUser, userIdFromParams, navigate]);
 
-    // Загрузка ачивок
     const fetchAchievements = useCallback(async () => {
-        if (!targetUserId) return; // Не грузим, если ID пользователя не определен
-
+        if (!targetUserId) return;
         setLoadingAchievements(true);
         try {
             const endpoint = (isOwnProfile) 
@@ -120,18 +105,23 @@ const Profile = () => {
             setAchievements(response.data);
         } catch (error) {
             console.error("Error fetching achievements:", error);
-            // Ошибку загрузки ачивок можно не показывать так критично
         } finally {
             setLoadingAchievements(false);
         }
     }, [targetUserId, isOwnProfile]);
 
     useEffect(() => {
-        fetchProfile();
-        fetchAchievements();
-    }, [fetchProfile, fetchAchievements]); // Зависимости уже внутри useCallback
+        if (targetUserId) {
+            fetchProfile();
+            fetchAchievements();
+        } else if (!authLoading && !loggedInUser && !userIdFromParams) {
+             setError("Профиль не указан.");
+             setLoadingProfile(false);
+             setLoadingAchievements(false);
+        }
+    }, [targetUserId, fetchProfile, fetchAchievements, authLoading, loggedInUser, userIdFromParams]);
 
-    if (authLoading || loadingProfile) { // Показываем общую загрузку, пока определяется пользователь
+    if (authLoading || loadingProfile) {
         return (
             <Container maxWidth="sm" sx={{ display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', minHeight: 'calc(100vh - 128px)', textAlign: 'center', py: 5 }}>
                 <CircularProgress sx={{mb: 2}}/>
@@ -153,13 +143,13 @@ const Profile = () => {
     if (!profileData) {
         return (
              <Container maxWidth="sm" sx={{ mt: 4 }}>
-                 <Alert severity="warning">Данные профиля не доступны.</Alert>
+                 <Alert severity="warning">Данные профиля не доступны. Возможно, такой пользователь не существует или у вас нет прав на просмотр.</Alert>
             </Container>
         );
     }
     
     return (
-        <Container maxWidth="md" sx={{ mt: 0, mb: 4 }}> {/* mt:0 т.к. отступ сверху уже есть от App.tsx */}
+        <Container maxWidth="md" sx={{ mt: 0, mb: 4 }}>
             <Paper sx={{ p: {xs: 2, sm: 3, md: 4}, display: 'flex', flexDirection: {xs: 'column', sm: 'row'}, alignItems: {xs: 'center', sm: 'flex-start'}, gap: {xs: 3, sm: 4} }}>
                 <Avatar
                     src={profileData.pictureUrl}
@@ -191,18 +181,8 @@ const Profile = () => {
                             </Typography>
                         </Box>
                     )}
-
-                    {/* Если это свой профиль, можно добавить кнопку редактирования */}
                     {isOwnProfile && (
-                        <Button 
-                            variant="outlined" 
-                            size="small" 
-                            // onClick={() => navigate('/profile/edit')} // Пример
-                            sx={{mb: 2}}
-                            disabled // Пока нет функционала редактирования
-                        >
-                            Редактировать профиль
-                        </Button>
+                        <Button variant="outlined" size="small" sx={{mb: 2}} disabled > Редактировать профиль </Button>
                     )}
                 </Box>
             </Paper>
@@ -212,80 +192,78 @@ const Profile = () => {
                     Достижения
                 </Typography>
                 {loadingAchievements ? (
-                    <Grid container spacing={2}>
-                        {[...Array(3)].map((_, index) => ( // Скелетоны для ачивок
-                            <Grid item xs={6} sm={4} md={3} key={index}>
-                                <Paper sx={{ p: 1.5, display: 'flex', flexDirection: 'column', alignItems: 'center', textAlign: 'center', height: 120}}>
-                                    <Skeleton variant="rectangular" width={48} height={48} sx={{mb:1}} />
-                                    <Skeleton variant="text" width="80%" />
-                                </Paper>
-                            </Grid>
+                    // Используем Flexbox для скелетонов
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
+                        {[...Array(3)].map((_, index) => (
+                            <Paper 
+                                key={index}
+                                sx={{ 
+                                    p: 1.5, 
+                                    display: 'flex', 
+                                    flexDirection: 'column', 
+                                    alignItems: 'center', 
+                                    textAlign: 'center', 
+                                    width: {xs: 'calc(50% - 8px)', sm: 'calc(33.333% - 11px)', md: 'calc(25% - 12px)'}, // Адаптивная ширина для 2, 3, 4 колонок
+                                    minHeight: 120,
+                                    boxSizing: 'border-box'
+                                }}
+                            >
+                                <Skeleton variant="rectangular" width={48} height={48} sx={{mb:1}} />
+                                <Skeleton variant="text" width="80%" />
+                            </Paper>
                         ))}
-                    </Grid>
+                    </Box>
                 ) : achievements.length > 0 ? (
-                    <Grid container spacing={2}>
+                    // Используем Flexbox для отображения ачивок
+                    <Box sx={{ display: 'flex', flexWrap: 'wrap', gap: 2 }}>
                         {achievements.map(ua => (
-                            <Grid item xs={6} sm={4} md={3} key={ua.achievement.code}>
-                                <Tooltip 
-                                    title={
-                                        <Box>
-                                            <Typography variant="subtitle2" gutterBottom>{ua.achievement.name}</Typography>
-                                            <Typography variant="caption">{ua.achievement.description}</Typography>
-                                            <Typography variant="caption" display="block" sx={{mt:0.5, color: 'grey.400'}}>
-                                                Получено: {new Date(ua.awardedAt).toLocaleDateString('ru-RU')}
-                                            </Typography>
-                                        </Box>
-                                    }
-                                    arrow
-                                    placement="top"
+                            <Tooltip 
+                                key={ua.achievement.code}
+                                title={
+                                    <Box>
+                                        <Typography variant="subtitle2" gutterBottom>{ua.achievement.name}</Typography>
+                                        <Typography variant="caption">{ua.achievement.description}</Typography>
+                                        <Typography variant="caption" display="block" sx={{mt:0.5, color: 'grey.400'}}>
+                                            Получено: {new Date(ua.awardedAt).toLocaleDateString('ru-RU')}
+                                        </Typography>
+                                    </Box>
+                                }
+                                arrow
+                                placement="top"
+                            >
+                                <Paper 
+                                    sx={{ 
+                                        p: {xs: 1, sm: 1.5}, 
+                                        display: 'flex', 
+                                        flexDirection: 'column', 
+                                        alignItems: 'center', 
+                                        textAlign: 'center',
+                                        width: {xs: 'calc(50% - 8px)', sm: 'calc(33.333% - 11px)', md: 'calc(25% - 12px)'}, // Адаптивная ширина
+                                        minHeight: 110,
+                                        justifyContent: 'center',
+                                        boxSizing: 'border-box'
+                                    }}
                                 >
-                                    <Paper 
-                                        sx={{ 
-                                            p: {xs: 1, sm: 1.5}, 
-                                            display: 'flex', 
-                                            flexDirection: 'column', 
-                                            alignItems: 'center', 
-                                            textAlign: 'center',
-                                            height: '100%', // Чтобы карточки были одинаковой высоты
-                                            justifyContent: 'center',
-                                            minHeight: 110, // Минимальная высота
-                                        }}
-                                    >
-                                        {/* TODO: Заменить на реальную иконку по ua.achievement.iconName */}
-                                        <Typography variant="h3" component="div" sx={{mb: 0.5, lineHeight: 1}}>
-                                           {ua.achievement.iconName === "REGISTRATION" ? "🎉" : 
-                                            ua.achievement.iconName === "FIRST_QUESTION" ? "❓" :
-                                            ua.achievement.iconName === "FIRST_ANSWER" ? "💡" :
-                                            ua.achievement.iconName === "FIRST_COMMENT" ? "💬" :
-                                            ua.achievement.iconName === "FIRST_ACCEPTED_ANSWER" ? "🏆" : "🌟"}
-                                        </Typography>
-                                        <Typography variant="caption" sx={{fontWeight: 500, lineHeight: 1.2}}>
-                                            {ua.achievement.name}
-                                        </Typography>
-                                    </Paper>
-                                </Tooltip>
-                            </Grid>
+                                    <Typography variant="h3" component="div" sx={{mb: 0.5, lineHeight: 1}}>
+                                       {ua.achievement.iconName === "REGISTRATION" ? "🎉" : 
+                                        ua.achievement.iconName === "FIRST_QUESTION" ? "❓" :
+                                        ua.achievement.iconName === "FIRST_ANSWER" ? "💡" :
+                                        ua.achievement.iconName === "FIRST_COMMENT" ? "💬" :
+                                        ua.achievement.iconName === "FIRST_ACCEPTED_ANSWER" ? "🏆" : "🌟"}
+                                    </Typography>
+                                    <Typography variant="caption" sx={{fontWeight: 500, lineHeight: 1.2}}>
+                                        {ua.achievement.name}
+                                    </Typography>
+                                </Paper>
+                            </Tooltip>
                         ))}
-                    </Grid>
+                    </Box>
                 ) : (
                     <Typography color="text.secondary" sx={{fontStyle: 'italic'}}>
                         У этого пользователя пока нет достижений.
                     </Typography>
                 )}
             </Box>
-
-            {/* Здесь можно добавить секции для вопросов пользователя, ответов и т.д. */}
-            {/* 
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h5" component="h2" gutterBottom>Вопросы пользователя</Typography>
-              { // Логика загрузки и отображения вопросов }
-            </Box>
-            <Box sx={{ mt: 4 }}>
-              <Typography variant="h5" component="h2" gutterBottom>Ответы пользователя</Typography>
-              { // Логика загрузки и отображения ответов }
-            </Box>
-            */}
-
         </Container>
     );
 };

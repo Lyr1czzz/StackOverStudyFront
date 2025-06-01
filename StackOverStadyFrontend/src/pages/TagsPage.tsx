@@ -2,12 +2,12 @@ import React, { useState, useEffect } from 'react';
 import axios from 'axios';
 import {
   Box, Typography, CircularProgress, Alert,
-  List, ListItem, ListItemText, Paper, Chip, Divider, Button,
+  List, ListItem, ListItemText, Chip, Divider, Button,
   IconButton, Tooltip, Dialog, DialogActions, DialogContent, DialogContentText, DialogTitle, Snackbar
 } from '@mui/material';
-import { Link as RouterLink, useNavigate } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import DeleteIcon from '@mui/icons-material/Delete'; // Иконка удаления
-import { useAuth, AuthUser } from '../AuthContext';   // Импортируем useAuth и AuthUser
+import { useAuth } from '../AuthContext';   // Импортируем useAuth и AuthUser
 
 interface TagWithCount {
   id: number;

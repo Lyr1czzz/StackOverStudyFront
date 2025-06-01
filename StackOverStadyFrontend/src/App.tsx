@@ -11,7 +11,7 @@ import QuestionDetailPage from './pages/QuestionDetailPage';
 import { Box, CssBaseline, Container, Drawer, useTheme, Paper, GlobalStyles, Theme as MuiTheme } from '@mui/material';
 import Footer from './components/Footer';
 import TagsPage from './pages/TagsPage';
-import { AppThemeProvider, useAppTheme } from './ThemeContext'; // Импортируем useAppTheme, если он нужен здесь
+import { AppThemeProvider } from './ThemeContext'; // Импортируем useAppTheme, если он нужен здесь
 
 const drawerWidth = 240;
 

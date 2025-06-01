@@ -1,9 +1,8 @@
 // src/components/AddCommentForm.tsx
 import React, { useState } from 'react';
 import axios from 'axios';
-import { Box, TextField, Button, CircularProgress, Link as MuiLink, Typography, useTheme } from '@mui/material';
+import { Box, TextField, Button, CircularProgress } from '@mui/material';
 import { useAuth } from '../AuthContext';
-import { useNavigate, useLocation, Link as RouterLink } from 'react-router-dom';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
 
@@ -23,9 +22,6 @@ const AddCommentForm: React.FC<AddCommentFormProps> = ({ targetId, targetType, o
     const [isSubmitting, setIsSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const { user } = useAuth(); // Убрал login, т.к. ссылка на вход будет в CommentList
-    const theme = useTheme();
-    const navigate = useNavigate();
-    const location = useLocation();
 
     const handleSubmit = async (event: React.FormEvent) => {
         event.preventDefault();

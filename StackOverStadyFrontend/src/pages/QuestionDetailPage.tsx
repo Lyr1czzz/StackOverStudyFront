@@ -1,5 +1,5 @@
 // src/pages/QuestionDetailPage.tsx
-import React, { useState, useEffect, useCallback, useRef } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import { useParams, Link as RouterLink, useNavigate, useLocation } from 'react-router-dom';
 import axios from 'axios';
 import {
@@ -39,7 +39,7 @@ import DeleteIcon from '@mui/icons-material/Delete'; // Иконка удале�
 
 import AddAnswerForm from '../components/AddAnswerForm';
 import CommentList from '../components/CommentList';
-import { useAuth, AuthUser } from '../AuthContext'; // Импортируем AuthUser
+import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import AnswerCard from '../components/AnswerCard';
 
 const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';

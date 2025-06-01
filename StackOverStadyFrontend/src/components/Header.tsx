@@ -1,4 +1,4 @@
-import React, { useState, useContext, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useNavigate, Link as RouterLink, useLocation, useSearchParams } from 'react-router-dom';
 import {
   AppBar,
@@ -19,8 +19,7 @@ import {
   ListItemIcon,
   ListItemText,
   Tooltip,
-  useTheme, // Импортируем useTheme
-  Theme as MuiTheme, // Для типизации theme из useTheme
+  useTheme,
 } from '@mui/material';
 import Brightness4Icon from '@mui/icons-material/Brightness4';
 import Brightness7Icon from '@mui/icons-material/Brightness7';

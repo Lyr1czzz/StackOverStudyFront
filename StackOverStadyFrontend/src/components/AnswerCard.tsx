@@ -5,7 +5,7 @@ import {
   Tooltip, Button, Snackbar, useTheme, Dialog, DialogActions,
   DialogContent, DialogContentText, DialogTitle, CircularProgress
 } from '@mui/material';
-import { Link as RouterLink, useLocation, useNavigate } from 'react-router-dom';
+import { Link as RouterLink} from 'react-router-dom';
 import { formatDistanceToNow, parseISO } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import DOMPurify from 'dompurify';
@@ -21,7 +21,7 @@ import AccountCircleIcon from '@mui/icons-material/AccountCircle';
 import DeleteIcon from '@mui/icons-material/Delete'; // Иконка удаления
 
 import CommentList from './CommentList';
-import { useAuth, AuthUser } from '../AuthContext'; // Импортируем AuthUser
+import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import axios from 'axios';
 import { AnswerDto } from '../pages/QuestionDetailPage';
 
@@ -37,8 +37,6 @@ interface AnswerCardProps {
 
 const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorId, onAcceptAnswer, onAnswerDeleted }) => {
   const { user, loading: authLoading } = useAuth(); // user теперь AuthUser | null
-  const navigate = useNavigate();
-  const location = useLocation();
   const theme = useTheme();
 
   const [voteProcessing, setVoteProcessing] = useState(false);
