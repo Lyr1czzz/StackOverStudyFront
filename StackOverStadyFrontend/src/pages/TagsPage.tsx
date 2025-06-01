@@ -15,7 +15,7 @@ interface TagWithCount {
   questionCount: number;
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 const TagsPage = () => {
   const [tags, setTags] = useState<TagWithCount[]>([]);
@@ -34,7 +34,7 @@ const TagsPage = () => {
       setLoading(true);
       setError(null);
       try {
-        const response = await axios.get<TagWithCount[]>(`${API_URL}/Tags`);
+        const response = await axios.get<TagWithCount[]>(`${API_URL}/api/Tags`);
         // Сортируем: сначала по количеству вопросов (убывание), затем по имени (возрастание)
         setTags(response.data.sort((a, b) => b.questionCount - a.questionCount || a.name.localeCompare(b.name)));
       } catch (err) {
