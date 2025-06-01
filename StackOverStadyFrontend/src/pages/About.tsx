@@ -1,4 +1,4 @@
-import { Container, Typography, Box, Paper, List, ListItem, ListItemIcon, ListItemText, Link as Divider, Button } from '@mui/material';
+import { Container, Typography, Box, List, ListItem, ListItemIcon, ListItemText, Link as Divider, Button } from '@mui/material';
 import { Link as RouterLink } from 'react-router-dom'; // Для внутренних ссылок
 import SchoolIcon from '@mui/icons-material/School'; // Иконка для образования
 import QuestionAnswerIcon from '@mui/icons-material/QuestionAnswer'; // Иконка для вопросов и ответов
@@ -9,7 +9,6 @@ import BuildIcon from '@mui/icons-material/Build'; // Иконка для инс
 const About = () => {
     return (
         <Container>
-            <Paper>
                 <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 3 }}>
                     О проекте StackOverStudy
                 </Typography>
@@ -93,7 +92,6 @@ const About = () => {
                         Смотреть вопросы
                     </Button>
                 </Box>
-            </Paper>
         </Container>
     );
 };
