@@ -8,8 +8,8 @@ import BuildIcon from '@mui/icons-material/Build'; // Иконка для инс
 
 const About = () => {
     return (
-        <Container maxWidth="lg" sx={{ mt: 0, mb: 4 }}> {/* mt:0, так как отступ уже есть в App.tsx */}
-            <Paper sx={{ p: { xs: 2, sm: 3, md: 4 } }}> {/* Используем Paper для стилизации из темы */}
+        <Container>
+            <Paper>
                 <Typography variant="h3" component="h1" gutterBottom sx={{ textAlign: 'center', mb: 3 }}>
                     О проекте StackOverStudy
                 </Typography>
