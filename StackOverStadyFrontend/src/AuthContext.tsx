@@ -74,7 +74,8 @@ export const AuthProvider = ({ children }: { children: React.ReactNode }) => {
         console.log('[AuthContext] Перенаправление на Google Login...');
         setUser(null);
         setLoading(true);
-        window.location.href = `${API_BASE_URL}/Auth/google-login?prompt=select_account`;
+        const timestamp = Date.now();
+        window.location.href = `${API_BASE_URL}/Auth/google-login?ts=${timestamp}`;
     };
 
     const logout = async () => {
