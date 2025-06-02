@@ -2,7 +2,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback } from 'react';
 import axios from 'axios';
 
-const API_BASE_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295';
+const API_BASE_URL = import.meta.env.VITE_API_URL;
 
 // Интерфейс для пользователя в контексте
 export interface AuthUser { // <--- ДОБАВЬ export ЗДЕСЬ

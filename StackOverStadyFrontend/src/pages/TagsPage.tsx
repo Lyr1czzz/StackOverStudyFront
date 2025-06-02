@@ -69,7 +69,7 @@ const TagsPage = () => {
 
     setDeleteProcessing(true);
     try {
-      await axios.delete(`${API_URL}/Tags/${tagToDelete.id}`, { withCredentials: true });
+      await axios.delete(`${API_URL}/api/Tags/${tagToDelete.id}`, { withCredentials: true });
       setTags(prevTags => prevTags.filter(t => t.id !== tagToDelete.id));
       setSnackbarMessage(`Тег "${tagToDelete.name}" успешно удален.`);
       setSnackbarOpen(true);

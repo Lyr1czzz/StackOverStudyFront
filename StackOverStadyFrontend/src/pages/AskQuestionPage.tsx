@@ -26,7 +26,7 @@ interface TagOption {
   inputValue?: string; // Для опции "Создать: ..."
 }
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 const MAX_TAG_LENGTH = 30;
 const MAX_TAGS_COUNT = 5;
 
@@ -63,7 +63,7 @@ const AskQuestionPage = () => {
     if (!query || query.trim().length < 1) return [];
     setTagLoading(true);
     try {
-      const response = await axios.get<TagOption[]>(`${API_URL}/Tags/suggest`, { params: { query } });
+      const response = await axios.get<TagOption[]>(`${API_URL}/api/Tags/suggest`, { params: { query } });
       return response.data.map(tag => ({ ...tag, id: tag.id || 0 })); // Убедимся, что id есть
     } catch (err) {
       console.error("Error fetching tag suggestions:", err);
@@ -157,7 +157,7 @@ const AskQuestionPage = () => {
 
     setIsSubmitting(true);
     try {
-      const response = await axios.post<{ id: number }>(`${API_URL}/Questions`, questionData, { withCredentials: true });
+      const response = await axios.post<{ id: number }>(`${API_URL}/api/Questions`, questionData, { withCredentials: true });
       navigate(`/questions/${response.data.id}`);
     } catch (error) {
       console.error('AskQuestionPage: Ошибка создания вопроса:', error);

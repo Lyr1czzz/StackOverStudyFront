@@ -11,7 +11,7 @@ import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import { Link as RouterLink, useLocation } from 'react-router-dom';
 import AddCircleOutlineIcon from '@mui/icons-material/AddCircleOutline';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export interface CommentData {
     id: number;
@@ -40,8 +40,8 @@ const CommentList: React.FC<CommentListProps> = ({ targetId, targetType }) => {
     const [snackbarMessage, setSnackbarMessage] = useState("");
 
     const apiUrl = targetType === 'question'
-        ? `${API_URL}/questions/${targetId}/comments`
-        : `${API_URL}/answers/${targetId}/comments`;
+        ? `${API_URL}/api/questions/${targetId}/comments`
+        : `${API_URL}/api/answers/${targetId}/comments`;
 
     const fetchComments = useCallback(async () => {
         setLoading(true); setError(null);
@@ -84,7 +84,7 @@ const CommentList: React.FC<CommentListProps> = ({ targetId, targetType }) => {
 
         setDeleteProcessing(true);
         try {
-            await axios.delete(`${API_URL}/Comments/${commentToDelete.id}`, { withCredentials: true });
+            await axios.delete(`${API_URL}/api/Comments/${commentToDelete.id}`, { withCredentials: true });
             setComments(prev => prev.filter(c => c.id !== commentToDelete.id));
             setSnackbarMessage("Комментарий удален.");
             setSnackbarOpen(true);

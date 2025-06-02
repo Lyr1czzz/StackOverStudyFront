@@ -9,7 +9,7 @@ import { useAuth } from '../AuthContext';
 import StarIcon from '@mui/icons-material/Star';
 import { useNavigate, useParams } from 'react-router-dom';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295';
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface UserProfileDataFromApi {
     id: number;

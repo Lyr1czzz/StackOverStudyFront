@@ -14,7 +14,7 @@ import SearchIcon from '@mui/icons-material/Search';
 import ClearIcon from '@mui/icons-material/Clear';
 import RotateLeftIcon from '@mui/icons-material/RotateLeft';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export interface UserSummary {
   id: number;
@@ -74,7 +74,7 @@ const HomePage = () => {
     const fetchTags = async () => {
       setLoadingTags(true);
       try {
-        const response = await axios.get<TagSummary[]>(`${API_URL}/Tags`);
+        const response = await axios.get<TagSummary[]>(`${API_URL}/api/Tags`);
         setAllAvailableTags(response.data);
         const initialTagFromUrl = searchParams.get('tags');
         if (initialTagFromUrl) {
@@ -143,7 +143,7 @@ const HomePage = () => {
 
 
     try {
-      const response = await axios.get<PaginatedResponse<QuestionSummary>>(`${API_URL}/Questions`, { params });
+      const response = await axios.get<PaginatedResponse<QuestionSummary>>(`${API_URL}/api/Questions`, { params });
       setQuestions(response.data.items);
       setTotalItems(response.data.totalCount);
     } catch (err) {

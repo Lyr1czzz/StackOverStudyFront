@@ -5,7 +5,7 @@ import { Box, Button, CircularProgress, Alert, useTheme } from '@mui/material';
 import RichTextEditor from './RichTextEditor'; // Предполагается, что RichTextEditor есть
 import { AnswerDto } from '../pages/QuestionDetailPage'; // Импорт интерфейса
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface AddAnswerFormProps {
   questionId: number;
@@ -29,7 +29,7 @@ const AddAnswerForm: React.FC<AddAnswerFormProps> = ({ questionId, onAnswerAdded
 
     try {
       const response = await axios.post<AnswerDto>(
-        `${API_URL}/questions/${questionId}/answers`,
+        `${API_URL}/api/questions/${questionId}/answers`,
         { content },
         { withCredentials: true }
       );

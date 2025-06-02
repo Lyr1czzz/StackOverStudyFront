@@ -42,7 +42,7 @@ import CommentList from '../components/CommentList';
 import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import AnswerCard from '../components/AnswerCard';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 export interface AnswerDto {
     id: number;
@@ -121,7 +121,7 @@ const QuestionDetailPage = () => {
     setErrorPage(null);
     setQuestion(null);
     try {
-      const response = await axios.get<QuestionDetailData>(`${API_URL}/Questions/${questionId}`);
+      const response = await axios.get<QuestionDetailData>(`${API_URL}/api/Questions/${questionId}`);
       response.data.answers = sortAnswers(response.data.answers);
       setQuestion(response.data);
     } catch (err) {
@@ -191,7 +191,7 @@ const QuestionDetailPage = () => {
     }
     setVotingState('voting');
     try {
-      const response = await axios.post<{ action: string, newRating: number }>(`${API_URL}/questions/${question.id}/vote`, { voteType }, { withCredentials: true });
+      const response = await axios.post<{ action: string, newRating: number }>(`${API_URL}/api/questions/${question.id}/vote`, { voteType }, { withCredentials: true });
       setQuestion(prev => (prev ? { ...prev, rating: response.data.newRating } : null));
       setSnackbarMessage(response.data.action === "removed vote" ? "Голос отменен." : "Голос учтён!"); setSnackbarOpen(true);
     } catch (error) {
@@ -219,7 +219,7 @@ const QuestionDetailPage = () => {
     setOpenDeleteConfirm(false);
     setDeleteProcessing(true);
     try {
-        await axios.delete(`${API_URL}/Questions/${question.id}`, { withCredentials: true });
+        await axios.delete(`${API_URL}/api/Questions/${question.id}`, { withCredentials: true });
         setSnackbarMessage("Вопрос успешно удален.");
         setSnackbarOpen(true);
         navigate('/'); 

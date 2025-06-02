@@ -25,7 +25,7 @@ import { useAuth } from '../AuthContext'; // Импортируем AuthUser
 import axios from 'axios';
 import { AnswerDto } from '../pages/QuestionDetailPage';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface AnswerCardProps {
   answer: AnswerDto;
@@ -96,7 +96,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
     if (voteProcessing) return;
     setVoteProcessing(true);
     try {
-      const response = await axios.post<{ action: string, newRating: number }>(`${API_URL}/answers/${answer.id}/vote`, { voteType }, { withCredentials: true });
+      const response = await axios.post<{ action: string, newRating: number }>(`${API_URL}/api/answers/${answer.id}/vote`, { voteType }, { withCredentials: true });
       onVote(answer.id, response.data.newRating);
       setSnackbarMessage(response.data.action === "removed vote" ? "Голос отменен." : "Голос учтён!"); setSnackbarOpen(true);
     } catch (error) {
@@ -115,7 +115,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
     }
     setAcceptProcessing(true);
     try {
-      await axios.post(`${API_URL}/answers/${answer.id}/accept`, {}, { withCredentials: true });
+      await axios.post(`${API_URL}/api/answers/${answer.id}/accept`, {}, { withCredentials: true });
       onAcceptAnswer(answer.id); 
     } catch (error) {
       const message = axios.isAxiosError(error) ? (error.response?.data?.message || "Не удалось принять ответ.") : "Произошла ошибка.";
@@ -132,7 +132,7 @@ const AnswerCard: React.FC<AnswerCardProps> = ({ answer, onVote, questionAuthorI
     setOpenDeleteConfirm(false);
     setDeleteProcessing(true);
     try {
-        await axios.delete(`${API_URL}/answers/${answer.id}`, { withCredentials: true });
+        await axios.delete(`${API_URL}/api/answers/${answer.id}`, { withCredentials: true });
         onAnswerDeleted(answer.id); // Вызываем колбэк для обновления списка в QuestionDetailPage
         // Snackbar об успехе удаления будет в QuestionDetailPage через onAnswerDeleted
     } catch (err) {

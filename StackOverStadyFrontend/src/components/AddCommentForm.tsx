@@ -4,7 +4,7 @@ import axios from 'axios';
 import { Box, TextField, Button, CircularProgress } from '@mui/material';
 import { useAuth } from '../AuthContext';
 
-const API_URL = import.meta.env.VITE_API_URL || 'https://localhost:7295/api';
+const API_URL = import.meta.env.VITE_API_URL;
 
 interface CommentData {
     id: number; text: string; createdAt: string;
@@ -42,8 +42,8 @@ const AddCommentForm: React.FC<AddCommentFormProps> = ({ targetId, targetType, o
         setIsSubmitting(true);
 
         const apiUrl = targetType === 'question'
-            ? `${API_URL}/questions/${targetId}/comments`
-            : `${API_URL}/answers/${targetId}/comments`;
+            ? `${API_URL}/api/questions/${targetId}/comments`
+            : `${API_URL}/api/answers/${targetId}/comments`;
 
         try {
             const response = await axios.post<CommentData>(apiUrl, { text: text.trim() }, { withCredentials: true });
