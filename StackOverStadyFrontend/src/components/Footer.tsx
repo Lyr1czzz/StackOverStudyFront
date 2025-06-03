@@ -1,23 +1,22 @@
+
 import {
   Box,
   Typography,
-  Link as MuiLink, // Переименовал, чтобы не конфликтовать с RouterLink
+  Link as MuiLink,
   Divider,
   Stack,
-  IconButton, // Для иконок соцсетей, если захочешь сделать их просто иконками
+  IconButton,
   useTheme,
   Tooltip,
 } from '@mui/material';
-import { Link as RouterLink } from 'react-router-dom'; // Для навигации
+import { Link as RouterLink } from 'react-router-dom'; // useNavigate здесь не нужен
 
-// Иконки для навигации и соцсетей
 import HomeIcon from '@mui/icons-material/Home';
-import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined'; // Используем Outlined версию
+import InfoOutlinedIcon from '@mui/icons-material/InfoOutlined';
 import QuestionAnswerOutlinedIcon from '@mui/icons-material/QuestionAnswerOutlined';
 import PersonOutlineOutlinedIcon from '@mui/icons-material/PersonOutlineOutlined';
 import GitHubIcon from '@mui/icons-material/GitHub';
 import LinkedInIcon from '@mui/icons-material/LinkedIn';
-// import TwitterIcon from '@mui/icons-material/Twitter'; // Если нужен Twitter
 
 const Footer = () => {
   const currentYear = new Date().getFullYear();
@@ -26,7 +25,7 @@ const Footer = () => {
   const navLinkStyles = {
     display: 'flex',
     alignItems: 'center',
-    py: 0.5, // Уменьшим вертикальный отступ
+    py: 0.5,
     color: 'text.secondary',
     textDecoration: 'none',
     '&:hover': {
@@ -46,32 +45,30 @@ const Footer = () => {
     <Box
       component="footer"
       sx={{
-        mt: 'auto', // Прижимает футер к низу, если контент короче
-        pt: { xs: 3, sm: 4 }, // Адаптивные отступы
+        mt: 'auto',
+        pt: { xs: 3, sm: 4 },
         pb: { xs: 2, sm: 3 },
-        backgroundColor: 'background.paper', // Из темы
-        borderTop: `1px solid ${theme.palette.divider}`, // Из темы
+        backgroundColor: 'background.paper',
+        borderTop: `1px solid ${theme.palette.divider}`,
       }}
     >
-      <Box // Контейнер для ограничения ширины, аналог Container maxWidth="lg"
+      <Box
         sx={{
-          maxWidth: 'lg', // Используем брейкпоинт из темы, соответствует 1200px по умолчанию
+          maxWidth: 'lg',
           mx: 'auto',
-          px: { xs: 2, sm: 3 }, // Адаптивные боковые отступы
+          px: { xs: 2, sm: 3 },
         }}
       >
-        {/* Верхняя часть с колонками */}
         <Box 
           sx={{ 
             display: 'flex', 
-            flexDirection: { xs: 'column', md: 'row' }, // Колонки на md+, стек на xs
+            flexDirection: { xs: 'column', md: 'row' },
             justifyContent: 'space-between',
-            gap: { xs: 3, md: 4 }, // Отступы между колонками
+            gap: { xs: 3, md: 4 },
             mb: { xs: 3, sm: 4 },
           }}
         >
-          {/* Колонка 1: Навигация по сайту */}
-          <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}> {/* flex-grow, flex-shrink, flex-basis */}
+          <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}>
             <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
               StackOverStudy
             </Typography>
@@ -80,7 +77,7 @@ const Footer = () => {
                 <HomeIcon fontSize="small" sx={{ mr: 1 }} />
                 Главная
               </MuiLink>
-              <MuiLink component={RouterLink} to="/?sort=newest" sx={navLinkStyles}> {/* Пример ссылки на вопросы */}
+              <MuiLink component={RouterLink} to="/?sort=newest&page=1" sx={navLinkStyles}> {/* Добавил page=1 */}
                 <QuestionAnswerOutlinedIcon fontSize="small" sx={{ mr: 1 }} />
                 Вопросы
               </MuiLink>
@@ -95,7 +92,6 @@ const Footer = () => {
             </Stack>
           </Box>
 
-          {/* Колонка 2: Компания/Ресурсы */}
           <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}>
             <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
               Ресурсы
@@ -104,16 +100,16 @@ const Footer = () => {
               <MuiLink component={RouterLink} to="/about" sx={navLinkStyles}>
                 О проекте
               </MuiLink>
-              <MuiLink component={RouterLink} to="/terms" sx={navLinkStyles} onClick={(e) => { e.preventDefault(); alert('Страница "Условия использования" в разработке');}}>
+              {/* ИСПРАВЛЕНИЕ: Используем RouterLink для навигации */}
+              <MuiLink component={RouterLink} to="/terms" sx={navLinkStyles}>
                 Условия использования
               </MuiLink>
-              <MuiLink component={RouterLink} to="/privacy" sx={navLinkStyles} onClick={(e) => { e.preventDefault(); alert('Страница "Политика конфиденциальности" в разработке');}}>
+              <MuiLink component={RouterLink} to="/privacy" sx={navLinkStyles}>
                 Политика конфиденциальности
               </MuiLink>
             </Stack>
           </Box>
 
-          {/* Колонка 3: Социальные сети / Связь */}
           <Box sx={{ flex: '1 1 200px', minWidth: '180px' }}>
             <Typography variant="subtitle1" fontWeight="bold" gutterBottom component="div">
               Свяжитесь с нами
@@ -124,27 +120,24 @@ const Footer = () => {
                   <GitHubIcon />
                 </IconButton>
               </Tooltip>
-              <Tooltip title="LinkedIn (если есть)">
+              <Tooltip title="LinkedIn">
                 <IconButton component="a" href="https://linkedin.com/in/YOUR_PROFILE" target="_blank" rel="noopener noreferrer" sx={socialLinkStyles} aria-label="LinkedIn">
                   <LinkedInIcon />
                 </IconButton>
               </Tooltip>
-              {/* Добавьте другие соцсети по необходимости */}
             </Stack>
              <Typography variant="body2" color="text.secondary" sx={{mt: 2}}>
                 Email: contact@stackoverstudy.dev
             </Typography>
           </Box>
-
         </Box>
 
         <Divider sx={{ my: 2.5 }} />
 
-        {/* Нижняя строка с копирайтом и доп. ссылками */}
         <Box 
           sx={{ 
             display: 'flex', 
-            flexDirection: { xs: 'column', sm: 'row' }, // На маленьких экранах в столбик
+            flexDirection: { xs: 'column', sm: 'row' },
             justifyContent: 'space-between', 
             alignItems: 'center', 
             gap: 2 
@@ -154,12 +147,14 @@ const Footer = () => {
             © {currentYear} StackOverStudy. Все права защищены.
           </Typography>
           <Stack direction="row" spacing={2} divider={<Divider orientation="vertical" flexItem />}>
-            <MuiLink component={RouterLink} to="/terms" color="text.secondary" underline="hover" variant="caption" onClick={(e) => { e.preventDefault(); alert('Страница "Условия использования" в разработке');}}>
+            {/* ИСПРАВЛЕНИЕ: Используем RouterLink для навигации */}
+            <MuiLink component={RouterLink} to="/terms" color="text.secondary" underline="hover" variant="caption">
               Условия
             </MuiLink>
-            <MuiLink component={RouterLink} to="/privacy" color="text.secondary" underline="hover" variant="caption" onClick={(e) => { e.preventDefault(); alert('Страница "Политика конфиденциальности" в разработке');}}>
+            <MuiLink component={RouterLink} to="/privacy" color="text.secondary" underline="hover" variant="caption">
               Конфиденциальность
             </MuiLink>
+            {/* <MuiLink component="button" color="text.secondary" underline="hover" variant="caption" onClick={() => alert('Файлы cookie')}> Файлы cookie </MuiLink> */}
           </Stack>
         </Box>
       </Box>

@@ -12,6 +12,8 @@ import { Box, CssBaseline, Container, Drawer, useTheme, Paper, GlobalStyles, The
 import Footer from './components/Footer';
 import TagsPage from './pages/TagsPage';
 import { AppThemeProvider } from './ThemeContext'; // Импортируем useAppTheme, если он нужен здесь
+import TermsOfServicePage from './pages/TermsOfServicePage';
+import PrivacyPolicyPage from './pages/PrivacyPolicyPage';
 
 const drawerWidth = 240;
 
@@ -137,6 +139,8 @@ function AppContent() {
               <Route path="/ask" element={<AskQuestionPage />} />
               <Route path="/questions/:questionId" element={<QuestionDetailPage />} />
               <Route path="/tags" element={<TagsPage />} />
+              <Route path="/terms" element={<TermsOfServicePage />} /> {/* <--- НОВЫЙ МАРШРУТ */}
+              <Route path="/privacy" element={<PrivacyPolicyPage />} /> {/* <--- НОВЫЙ МАРШРУТ */}
             </Routes>
           </Paper>
         </Box>
