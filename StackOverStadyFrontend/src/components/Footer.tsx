@@ -116,7 +116,7 @@ const Footer = () => {
             </Typography>
             <Stack direction="row" spacing={1.5} sx={{mt:1}}>
               <Tooltip title="GitHub проекта">
-                <IconButton component="a" href="https://github.com/YOUR_USERNAME/YOUR_REPO" target="_blank" rel="noopener noreferrer" sx={socialLinkStyles} aria-label="GitHub">
+                <IconButton component="a" href="https://github.com/Lyr1czzz/StackOverStudyApi" target="_blank" rel="noopener noreferrer" sx={socialLinkStyles} aria-label="GitHub">
                   <GitHubIcon />
                 </IconButton>
               </Tooltip>
@@ -127,7 +127,7 @@ const Footer = () => {
               </Tooltip>
             </Stack>
              <Typography variant="body2" color="text.secondary" sx={{mt: 2}}>
-                Email: contact@stackoverstudy.dev
+                Email: billyroll03@gmail.com
             </Typography>
           </Box>
         </Box>
