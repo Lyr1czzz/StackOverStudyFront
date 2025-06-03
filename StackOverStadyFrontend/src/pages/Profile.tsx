@@ -71,8 +71,7 @@ const Profile = () => {
             if (isOwnProfile && loggedInUser) {
                 finalProfileData = {
                     ...loggedInUser, 
-                    ...response.data, 
-                    rating: response.data.rating ?? loggedInUser.rating ?? 0,
+                    ...response.data,
                     id: loggedInUser.id,
                     email: loggedInUser.email,
                 };
